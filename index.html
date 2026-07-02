@@ -1387,7 +1387,8 @@
         <div class="auth-intro panel auth-glass">
           <h1>Создай аккаунт и открой <span class="auth-gradient-text">mendflow</span></h1>
           <p class="hero-text">
-            Регистрация открывает доступ к workspace — сразу после создания аккаунта можно войти и работать в профиле.
+            Регистрация открывает доступ к workspace. После подтверждения email
+            вы сможете войти и работать в своём профиле.
           </p>
 
           <div class="auth-points">
@@ -1397,11 +1398,11 @@
             </article>
             <article class="auth-point-card">
               <strong>02</strong>
-              <span>Нажми «Создать аккаунт» — вход сразу</span>
+              <span>Подтверди email 6-значным кодом</span>
             </article>
             <article class="auth-point-card">
               <strong>03</strong>
-              <span>Открой workspace, проекты и сеть</span>
+              <span>Войди и открой workspace, проекты и сеть</span>
             </article>
           </div>
         </div>
@@ -7530,9 +7531,20 @@
     try {
       const d = await api(endpoint, { method: 'POST', body: JSON.stringify(body) });
 
-      if (d.requires_verification) {
+      const needsVerify = d.requires_verification || d.email_verified === false || (d.success && d.email_verified !== true);
+      if (needsVerify) {
         const code = d.verification_code || d.dev_code;
         openVerifyStep(d.email || em, code, d.message || 'Подтвердите email', d.email_sent);
+        if (!code && (d.email || em)) {
+          api('/resend-verification.php', {
+            method: 'POST',
+            body: JSON.stringify({ email: d.email || em }),
+          }).then(res => {
+            const resent = res.verification_code || res.dev_code;
+            if (resent) showVerifyCode(resent, res.email_sent);
+            if (res.message) showMsg('registerMessage', res.message, 'success');
+          }).catch(() => {});
+        }
         return;
       }
 

@@ -43,9 +43,17 @@ try {
         exit;
     }
 
-    // Подтверждение email временно отключено — верифицируем автоматически
     if (empty($user['email_verified_at'])) {
-        $pdo->prepare('UPDATE users SET email_verified_at = NOW() WHERE id = ?')->execute([(int)$user['id']]);
+        $verify = createAndSendVerification($pdo, (int)$user['id'], $email, getUserDisplayName($user));
+        http_response_code(403);
+        echo json_encode(array_merge([
+            'error'                 => 'Email не подтверждён. Введите код, отправленный на почту.',
+            'requires_verification' => true,
+            'email'                 => $email,
+            'expires_in'            => $verify['expires_in'],
+            'message'               => verificationSuccessMessage($verify),
+        ], verificationApiFields($verify)));
+        exit;
     }
 
     echo json_encode([

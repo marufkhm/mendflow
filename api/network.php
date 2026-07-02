@@ -168,39 +168,6 @@ try {
         }
     } catch (Exception $e) {}
 
-    /* ── Seed organizations (optional table) ── */
-    $skipSeedCompanies = !empty(array_filter($organizations, static fn($o) => ($o['type'] ?? '') === 'companies'));
-    try {
-        $orgTableExists = $pdo->query("SHOW TABLES LIKE 'organizations'")->fetchColumn();
-        if ($orgTableExists) {
-            $orgStmt = $pdo->query("
-                SELECT id, type, title, subtitle, meta, description, tags_text, action_label
-                FROM organizations
-                ORDER BY type ASC, title ASC
-                LIMIT 100
-            ");
-            foreach ($orgStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                if ($skipSeedCompanies && ($row['type'] ?? '') === 'companies') {
-                    continue;
-                }
-                $tags = array_values(array_filter(array_map('trim', explode(',', (string)($row['tags_text'] ?? '')))));
-                $organizations[] = [
-                    'id'          => (int)$row['id'],
-                    'db_id'       => (int)$row['id'],
-                    'type'        => $row['type'],
-                    'title'       => $row['title'],
-                    'subtitle'    => $row['subtitle'],
-                    'meta'        => $row['meta'],
-                    'description' => $row['description'],
-                    'tags'        => $tags,
-                    'action'      => $row['action_label'] ?: 'Открыть',
-                ];
-            }
-        }
-    } catch (Exception $e) {
-        // organizations table doesn't exist — silently ignore
-    }
-
     jsonOut([
         'people'        => $people,
         'organizations' => $organizations,

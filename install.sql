@@ -115,19 +115,3 @@ CREATE INDEX idx_friend_requests_from ON friend_requests(from_id);
 CREATE INDEX idx_friend_requests_to ON friend_requests(to_id);
 CREATE INDEX idx_friendships_user1 ON friendships(user1_id);
 CREATE INDEX idx_friendships_user2 ON friendships(user2_id);
-
-INSERT INTO organizations (slug, type, title, subtitle, meta, description, tags_text, action_label)
-SELECT 'aitu', 'universities', 'Astana IT University', 'Тех-комьюнити, research labs и карьерные треки', 'Астана, Казахстан', 'Открывает доступ к академическим связям, студенческим проектам и карьерным возможностям.', 'AI,Startup,Research', 'Открыть возможности'
-WHERE NOT EXISTS (SELECT 1 FROM organizations WHERE slug = 'aitu');
-
-INSERT INTO organizations (slug, type, title, subtitle, meta, description, tags_text, action_label)
-SELECT 'nu', 'universities', 'Nazarbayev University', 'Исследования, exchange и сильные студенческие сообщества', 'Астана, Казахстан', 'Помогает находить академические контакты, исследовательские группы и международные программы.', 'Research,Exchange,Community', 'Посмотреть сообщество'
-WHERE NOT EXISTS (SELECT 1 FROM organizations WHERE slug = 'nu');
-
-INSERT INTO organizations (slug, type, title, subtitle, meta, description, tags_text, action_label)
-SELECT 'kolesa-group', 'companies', 'Kolesa Group', 'Продуктовые команды и стажировки', 'Алматы, Казахстан', 'Ищет людей в продукт, дизайн и разработку с реальным желанием строить сервисы.', 'Internship,Product,Engineering', 'Смотреть вакансии'
-WHERE NOT EXISTS (SELECT 1 FROM organizations WHERE slug = 'kolesa-group');
-
-INSERT INTO organizations (slug, type, title, subtitle, meta, description, tags_text, action_label)
-SELECT 'epam', 'companies', 'EPAM Systems', 'Инженерные команды, менторство и международные проекты', 'Казахстан / Remote', 'Даёт доступ к практическим командам, техническому росту и глобальным проектам.', 'Engineering,Mentorship,Remote', 'Открыть направления'
-WHERE NOT EXISTS (SELECT 1 FROM organizations WHERE slug = 'epam');

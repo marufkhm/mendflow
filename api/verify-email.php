@@ -39,10 +39,11 @@ try {
     sendWelcomeEmailMessage($email, getUserDisplayName($user ?: ['email' => $email]));
 
     echo json_encode([
-        'success' => true,
-        'token'   => generateToken($userId),
-        'user'    => $user,
-        'message' => 'Email подтверждён!',
+        'success'        => true,
+        'email_verified' => true,
+        'token'          => generateToken($userId),
+        'user'           => $user,
+        'message'        => 'Email подтверждён!',
     ]);
 
 } catch (Throwable $e) {

@@ -51,22 +51,35 @@ try {
     $existing = $check->fetch(PDO::FETCH_ASSOC);
 
     if ($existing) {
+        if (empty($existing['email_verified_at'])) {
+            $verify = createAndSendVerification($pdo, (int)$existing['id'], $email, trim("$firstName $lastName"));
+            echo json_encode(array_merge([
+                'success'               => true,
+                'requires_verification' => true,
+                'email_verified'        => false,
+                'email'                 => $email,
+                'message'               => 'Аккаунт уже создан, но email не подтверждён. ' . verificationSuccessMessage($verify),
+            ], verificationApiFields($verify)));
+            exit;
+        }
         http_response_code(409);
         echo json_encode(['error' => 'Этот email уже зарегистрирован']);
         exit;
     }
 
-    $pdo->prepare("INSERT INTO users (first_name, last_name, email, password_hash, email_verified_at) VALUES (?, ?, ?, ?, NOW())")
+    $pdo->prepare("INSERT INTO users (first_name, last_name, email, password_hash, email_verified_at) VALUES (?, ?, ?, ?, NULL)")
         ->execute([$firstName, $lastName, $email, password_hash($password, PASSWORD_DEFAULT)]);
 
     $userId = (int)$pdo->lastInsertId();
+    $verify = createAndSendVerification($pdo, $userId, $email, trim("$firstName $lastName"));
 
-    echo json_encode([
-        'success' => true,
-        'token'   => generateToken($userId),
-        'user'    => getUser($userId),
-        'message' => 'Аккаунт создан',
-    ]);
+    echo json_encode(array_merge([
+        'success'               => true,
+        'requires_verification' => true,
+        'email_verified'        => false,
+        'email'                 => $email,
+        'message'               => verificationSuccessMessage($verify),
+    ], verificationApiFields($verify)));
 
 } catch (Throwable $e) {
     http_response_code(500);

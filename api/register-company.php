@@ -56,6 +56,17 @@ try {
     $check->execute([$email]);
     $existing = $check->fetch(PDO::FETCH_ASSOC);
     if ($existing) {
+        if (empty($existing['email_verified_at'])) {
+            $verify = createAndSendVerification($pdo, (int)$existing['id'], $email, $companyName);
+            echo json_encode(array_merge([
+                'success'               => true,
+                'requires_verification' => true,
+                'email_verified'        => false,
+                'email'                 => $email,
+                'message'               => verificationSuccessMessage($verify),
+            ], verificationApiFields($verify)));
+            exit;
+        }
         http_response_code(409);
         echo json_encode(['error' => 'Этот email уже зарегистрирован']);
         exit;
@@ -63,7 +74,7 @@ try {
 
     $pdo->beginTransaction();
 
-    $pdo->prepare("INSERT INTO users (first_name, last_name, email, password_hash, role, email_verified_at) VALUES (?, '', ?, ?, 'company', NOW())")
+    $pdo->prepare("INSERT INTO users (first_name, last_name, email, password_hash, role, email_verified_at) VALUES (?, '', ?, ?, 'company', NULL)")
         ->execute([$companyName, $email, password_hash($password, PASSWORD_DEFAULT)]);
 
     $userId = (int)$pdo->lastInsertId();
@@ -75,12 +86,14 @@ try {
 
     $pdo->commit();
 
-    echo mfJsonEncode([
-        'success' => true,
-        'token'   => generateToken($userId),
-        'user'    => getUser($userId),
-        'message' => 'Аккаунт компании создан',
-    ]);
+    $verify = createAndSendVerification($pdo, $userId, $email, $companyName);
+    echo mfJsonEncode(array_merge([
+        'success'               => true,
+        'requires_verification' => true,
+        'email_verified'        => false,
+        'email'                 => $email,
+        'message'               => 'Аккаунт компании создан. ' . verificationSuccessMessage($verify),
+    ], verificationApiFields($verify)));
 
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
