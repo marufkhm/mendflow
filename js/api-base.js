@@ -214,4 +214,50 @@
     window.__MF_API_RESOLVED = true;
     return window.API_BASE;
   };
+
+  /** Принудительная верификация email после register* — работает даже со старым index.html на сервере */
+  function installRegisterVerificationPatch() {
+    if (window.__MF_REGISTER_VERIFY_PATCH) return;
+
+    const isRegisterEndpoint = (endpoint) => {
+      const ep = String(endpoint || '').split('?')[0];
+      return /^\/register(?:-company|-university)?\.php$/i.test(ep);
+    };
+
+    const patchApi = () => {
+      if (typeof window.api !== 'function' || window.__MF_REGISTER_VERIFY_PATCH) return !!window.__MF_REGISTER_VERIFY_PATCH;
+      const origApi = window.api;
+      window.api = async function mfApiWithRegisterVerify(endpoint, opts = {}) {
+        const data = await origApi.call(this, endpoint, opts);
+        if (!data || typeof data !== 'object' || !isRegisterEndpoint(endpoint)) return data;
+
+        const needsVerify = data.requires_verification
+          || data.email_verified === false
+          || (data.success && data.email_verified !== true);
+
+        if (!needsVerify) return data;
+
+        return {
+          ...data,
+          success: true,
+          requires_verification: true,
+          email_verified: false,
+          token: undefined,
+          user: undefined,
+        };
+      };
+      window.__MF_REGISTER_VERIFY_PATCH = true;
+      return true;
+    };
+
+    if (patchApi()) return;
+
+    const timer = setInterval(() => {
+      if (patchApi()) clearInterval(timer);
+    }, 10);
+
+    document.addEventListener('DOMContentLoaded', patchApi, { once: true });
+  }
+
+  installRegisterVerificationPatch();
 })();

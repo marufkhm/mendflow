@@ -1,5 +1,5 @@
 #!/bin/bash
-# Заливка auth-файлов на production (email verification)
+# Заливка email-verification на production
 set -euo pipefail
 
 HOST="${MF_DEPLOY_HOST:-root@104.248.62.230}"
@@ -16,10 +16,12 @@ scp \
   api/auth_email.php \
   "${HOST}:${REMOTE}/api/"
 
+scp js/api-base.js "${HOST}:${REMOTE}/js/"
 scp index.html "${HOST}:${REMOTE}/"
 
-echo "✓ Done. Проверка register.php:"
-curl -s -X POST "https://mendflow.us/api/register.php" \
-  -H 'Content-Type: application/json' \
-  -d '{"firstName":"X","lastName":"Y","email":"noop","password":"x"}' | head -c 120
-echo
+echo ""
+echo "✓ Готово. На сервере должно быть:"
+echo "  grep installRegisterVerificationPatch ${REMOTE}/js/api-base.js"
+echo "  grep requires_verification ${REMOTE}/api/register.php"
+echo ""
+echo "В браузере: Ctrl+Shift+R, затем регистрация с новым email."

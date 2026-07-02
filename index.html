@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="mendflow-build" content="20260629-index-fix">
   <title>mendflow</title>
-  <script src="./js/api-base.js?v=20260701-media-proxy2"></script>
+  <script src="./js/api-base.js?v=20260702-auth-verify"></script>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
@@ -7127,7 +7127,7 @@
     pollNotifications();
     document.dispatchEvent(new CustomEvent('mf:auth-ready'));
   }
-  function showAuth(screen='register') {
+  function showAuth(screen='register', regStep) {
     $('appShell')?.classList.add('is-hidden');
       $('registerScreen')?.classList.remove('auth-screen-active');
     $('loginScreen')?.classList.remove('auth-screen-active');
@@ -7143,7 +7143,7 @@
       showLoginCard('reset');
     } else {
       $('registerScreen')?.classList.add('auth-screen-active');
-      showRegStep(1);
+      showRegStep(typeof regStep === 'number' ? regStep : 1);
     }
   }
 
@@ -7231,8 +7231,7 @@
     if ($('verifyEmailDisplay')) $('verifyEmailDisplay').textContent = pendingVerifyEmail;
     hideVerifyCode();
     clearVerifyInputs();
-    showRegStep(2);
-    showAuth('register');
+    showAuth('register', 2);
     if (code) showVerifyCode(code, !!emailSent);
     if (message) showMsg('registerMessage', message, code && !emailSent ? 'info' : 'success');
     startVerifyResendTimer(60);
