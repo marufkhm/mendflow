@@ -205,8 +205,8 @@ function requestPasswordReset(PDO $pdo, string $email): bool {
 function resetPasswordWithToken(PDO $pdo, string $token, string $password): array {
     ensureAuthEmailSchema($pdo);
 
-    if (strlen($password) < 6) {
-        return ['error' => 'Пароль минимум 6 символов'];
+    if ($err = validatePasswordStrength($password)) {
+        return ['error' => $err];
     }
 
     $st = $pdo->prepare("

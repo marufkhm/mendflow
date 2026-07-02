@@ -38,6 +38,29 @@ function env(string $key, $default = null) {
     return ($v !== false && $v !== null && $v !== '') ? $v : $default;
 }
 
+/**
+ * Проверка сложности пароля. null = ок, string = сообщение об ошибке.
+ */
+function validatePasswordStrength(string $password): ?string
+{
+    if (strlen($password) < 8) {
+        return 'Пароль: минимум 8 символов';
+    }
+    if (!preg_match('/[a-zа-яё]/u', $password)) {
+        return 'Пароль должен содержать строчную букву';
+    }
+    if (!preg_match('/[A-ZА-ЯЁ]/u', $password)) {
+        return 'Пароль должен содержать заглавную букву';
+    }
+    if (!preg_match('/\d/u', $password)) {
+        return 'Пароль должен содержать цифру';
+    }
+    if (!preg_match('/[^a-zA-Zа-яА-ЯёЁ0-9]/u', $password)) {
+        return 'Пароль должен содержать спецсимвол (!@#$% и т.п.)';
+    }
+    return null;
+}
+
 if (!function_exists('str_starts_with')) {
     function str_starts_with(string $haystack, string $needle): bool
     {

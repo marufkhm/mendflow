@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=20260701-crs-reviews-fix">
+  <link rel="stylesheet" href="./style.css?v=20260702-legal-docs">
   <script src="./js/mendflow-emojis.js?v=20260701-badge-icons"></script>
   <script src="./js/feed-ranking.js?v=20260625"></script>
   <script src="./js/pwa.js?v=20260620c" defer></script>
@@ -1430,15 +1430,16 @@
               </label>
               <label class="auth-field">
                 <span>Email</span>
-                <input class="auth-input" type="email" name="email" placeholder="student@university.kz" required>
+                <input class="auth-input" type="email" name="email" placeholder="you@email.com" required>
               </label>
               <label class="auth-field">
                 <span>Пароль</span>
-                <input class="auth-input" type="password" name="password" placeholder="Минимум 6 символов" minlength="6" required>
+                <input class="auth-input" type="password" name="password" placeholder="Мин. 8 символов, Aa1!" autocomplete="new-password" minlength="8" required>
+                <span class="auth-field-hint">Минимум 8 символов, заглавная и строчная буква, цифра и спецсимвол</span>
               </label>
               <label class="auth-field">
                 <span>Повторите пароль</span>
-                <input class="auth-input" type="password" name="passwordConfirm" placeholder="Повторите пароль" minlength="6" required>
+                <input class="auth-input" type="password" name="passwordConfirm" placeholder="Повторите пароль" autocomplete="new-password" minlength="8" required>
               </label>
               <!-- Поля для компании (скрыты по умолчанию) -->
 <div id="companyFields" class="is-hidden">
@@ -1476,6 +1477,11 @@
   </label>
 </div>
               <button class="primary-button wide auth-submit-btn" type="submit" id="registerSubmitButton">Создать аккаунт</button>
+              <p class="auth-legal-note">Создавая аккаунт, вы принимаете
+                <button type="button" class="auth-legal-link" data-legal="terms">Условия использования</button>
+                и
+                <button type="button" class="auth-legal-link" data-legal="privacy">Политику конфиденциальности</button>.
+              </p>
             </form>
             <button class="ghost-button wide auth-switch-button" id="goToLoginButton" type="button">Уже зарегистрирован? Войти</button>
           </article>
@@ -1558,7 +1564,7 @@
             <form class="auth-form" id="loginForm">
               <label class="auth-field">
                 <span>Email</span>
-                <input class="auth-input" type="email" name="identifier" placeholder="you@university.kz" required>
+                <input class="auth-input" type="email" name="identifier" placeholder="you@email.com" required>
               </label>
               <label class="auth-field">
                 <span>Пароль</span>
@@ -1579,7 +1585,7 @@
             <form class="auth-form" id="forgotPasswordForm">
               <label class="auth-field">
                 <span>Email</span>
-                <input class="auth-input" type="email" name="email" placeholder="student@university.kz" required>
+                <input class="auth-input" type="email" name="email" placeholder="you@email.com" required>
               </label>
               <button class="primary-button wide auth-submit-btn" type="submit">Отправить ссылку</button>
             </form>
@@ -1595,11 +1601,12 @@
             <form class="auth-form" id="resetPasswordForm">
               <label class="auth-field">
                 <span>Новый пароль</span>
-                <input class="auth-input" type="password" name="password" placeholder="Минимум 6 символов" minlength="6" required>
+                <input class="auth-input" type="password" name="password" placeholder="Мин. 8 символов, Aa1!" autocomplete="new-password" minlength="8" required>
+                <span class="auth-field-hint">Минимум 8 символов, заглавная и строчная буква, цифра и спецсимвол</span>
               </label>
               <label class="auth-field">
                 <span>Подтверждение</span>
-                <input class="auth-input" type="password" name="passwordConfirm" placeholder="Повторите пароль" minlength="6" required>
+                <input class="auth-input" type="password" name="passwordConfirm" placeholder="Повторите пароль" autocomplete="new-password" minlength="8" required>
               </label>
               <button class="primary-button wide auth-submit-btn" type="submit">Сохранить пароль</button>
             </form>
@@ -1607,6 +1614,11 @@
           </article>
 
           <div class="auth-message" id="loginMessage" aria-live="polite"></div>
+          <p class="auth-legal-note auth-legal-note--login">
+            <button type="button" class="auth-legal-link" data-legal="terms">Условия использования</button>
+            ·
+            <button type="button" class="auth-legal-link" data-legal="privacy">Политика конфиденциальности</button>
+          </p>
         </div>
       </div>
     </section>
@@ -4166,7 +4178,7 @@
                   </div>
                   <div class="upf-settings-head-info">
                     <h2 id="profileName" style="font-size:20px">Пользователь</h2>
-                    <p id="profileEmail" style="font-size:13px; color:var(--text-muted)">email@university.kz</p>
+                    <p id="profileEmail" style="font-size:13px; color:var(--text-muted)">you@email.com</p>
                   </div>
                 </div>
 
@@ -4407,6 +4419,110 @@
 
       <div class="inbox-dialog-body">
         <section class="notification-list" id="notificationList"></section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Условия использования -->
+  <div class="inbox-modal is-hidden" id="termsModal">
+    <div class="inbox-backdrop" data-legal-close></div>
+    <div class="inbox-dialog legal-dialog panel">
+      <div class="inbox-dialog-top">
+        <div>
+          <p class="eyebrow">Terms of Service</p>
+          <h2>Условия использования</h2>
+        </div>
+        <button class="ghost-button" type="button" data-legal-close>Закрыть</button>
+      </div>
+      <div class="inbox-dialog-body legal-body">
+        <p class="legal-updated">Последнее обновление: 2 июля 2026</p>
+
+        <h3>1. Общие положения</h3>
+        <p>Настоящие Условия использования (далее — «Условия») регулируют доступ и использование платформы Mendflow (далее — «Сервис») — социальной платформы для всех пользователей. Регистрируясь и используя Сервис, вы подтверждаете, что прочитали, поняли и согласны соблюдать настоящие Условия.</p>
+
+        <h3>2. Регистрация и аккаунт</h3>
+        <p>Для использования большинства функций необходимо создать аккаунт. Вы обязуетесь предоставлять достоверные данные и поддерживать их актуальность. Вы несёте ответственность за сохранность пароля и за все действия, совершённые под вашим аккаунтом.</p>
+        <p>Регистрация доступна лицам от 16 лет. Один пользователь может иметь один персональный аккаунт (аккаунты компаний и университетов создаются от имени организации уполномоченным представителем).</p>
+
+        <h3>3. Правила поведения</h3>
+        <p>При использовании Сервиса запрещается:</p>
+        <ul>
+          <li>публиковать незаконный, оскорбительный, дискриминационный контент или спам;</li>
+          <li>нарушать права интеллектуальной собственности третьих лиц;</li>
+          <li>выдавать себя за другое лицо или организацию;</li>
+          <li>собирать данные других пользователей без их согласия;</li>
+          <li>пытаться нарушить работу Сервиса, обходить защиту или получать несанкционированный доступ.</li>
+        </ul>
+
+        <h3>4. Пользовательский контент</h3>
+        <p>Вы сохраняете права на контент, который публикуете. Публикуя контент, вы предоставляете Сервису неисключительную лицензию на его хранение и отображение в рамках работы платформы. Вы отвечаете за законность размещаемого вами контента.</p>
+
+        <h3>5. Интеллектуальная собственность</h3>
+        <p>Название, логотип, дизайн и программный код Сервиса принадлежат правообладателю Mendflow. Использование материалов Сервиса без разрешения запрещено.</p>
+
+        <h3>6. Ограничение ответственности</h3>
+        <p>Сервис предоставляется «как есть». Мы не гарантируем бесперебойную работу и не несём ответственности за ущерб, возникший в результате использования или невозможности использования Сервиса, а также за контент, размещённый пользователями.</p>
+
+        <h3>7. Блокировка аккаунта</h3>
+        <p>Мы вправе ограничить или заблокировать доступ к аккаунту при нарушении настоящих Условий без предварительного уведомления.</p>
+
+        <h3>8. Изменения условий</h3>
+        <p>Мы можем обновлять настоящие Условия. Продолжая пользоваться Сервисом после изменений, вы принимаете обновлённую редакцию.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Политика конфиденциальности -->
+  <div class="inbox-modal is-hidden" id="privacyModal">
+    <div class="inbox-backdrop" data-legal-close></div>
+    <div class="inbox-dialog legal-dialog panel">
+      <div class="inbox-dialog-top">
+        <div>
+          <p class="eyebrow">Privacy Policy</p>
+          <h2>Политика конфиденциальности</h2>
+        </div>
+        <button class="ghost-button" type="button" data-legal-close>Закрыть</button>
+      </div>
+      <div class="inbox-dialog-body legal-body">
+        <p class="legal-updated">Последнее обновление: 2 июля 2026</p>
+
+        <h3>1. Какие данные мы собираем</h3>
+        <ul>
+          <li><strong>Данные аккаунта:</strong> имя, email, пароль (в зашифрованном виде), роль, а также сведения профиля, которые вы указываете добровольно (город, образование, специальность, интересы, аватар, обложка).</li>
+          <li><strong>Контент:</strong> посты, комментарии, сообщения, проекты, файлы, которые вы создаёте и загружаете.</li>
+          <li><strong>Технические данные:</strong> IP-адрес, тип устройства и браузера, а также данные сессий, необходимые для авторизации и безопасности.</li>
+        </ul>
+
+        <h3>2. Как мы используем данные</h3>
+        <ul>
+          <li>для предоставления и работы Сервиса (регистрация, вход, лента, сообщения, проекты);</li>
+          <li>для подтверждения email и восстановления доступа;</li>
+          <li>для обеспечения безопасности и предотвращения злоупотреблений (в т.ч. ограничение частоты запросов);</li>
+          <li>для улучшения функциональности и рекомендаций.</li>
+        </ul>
+
+        <h3>3. Правовые основания</h3>
+        <p>Мы обрабатываем данные на основании вашего согласия, необходимости исполнения договора (предоставление Сервиса) и наших законных интересов (безопасность и развитие продукта).</p>
+
+        <h3>4. Передача данных третьим лицам</h3>
+        <p>Мы не продаём ваши персональные данные. Данные могут обрабатываться поставщиками инфраструктуры и сервисов (например, хостинг, отправка email), исключительно для обеспечения работы Сервиса и в объёме, необходимом для оказания услуги.</p>
+
+        <h3>5. Хранение и защита</h3>
+        <p>Данные хранятся столько, сколько необходимо для целей обработки или пока существует ваш аккаунт. Пароли хранятся в виде необратимого хеша. Мы применяем технические и организационные меры для защиты данных.</p>
+
+        <h3>6. Ваши права</h3>
+        <ul>
+          <li>доступ к своим данным и их исправление в настройках профиля;</li>
+          <li>удаление аккаунта и связанных данных по запросу;</li>
+          <li>отзыв согласия на обработку;</li>
+          <li>обращение с жалобой в надзорный орган.</li>
+        </ul>
+
+        <h3>7. Файлы cookie и локальное хранилище</h3>
+        <p>Мы используем localStorage и cookie для хранения токена сессии и настроек интерфейса (например, темы). Они необходимы для работы авторизации.</p>
+
+        <h3>8. Изменения политики</h3>
+        <p>Мы можем обновлять настоящую Политику. Существенные изменения будут отражены на этой странице с обновлением даты.</p>
       </div>
     </div>
   </div>
@@ -5913,7 +6029,7 @@
               </div>
               <div>
                 <h4 id="profileSettingsName">Студент</h4>
-                <p id="profileSettingsEmail">student@university.kz</p>
+                <p id="profileSettingsEmail">you@email.com</p>
               </div>
             </div>
 
@@ -6298,7 +6414,7 @@
               </label>
               <label class="auth-field">
                 <span>Новый пароль</span>
-                <input class="auth-input" id="profileSecurityPassword" type="password" placeholder="Минимум 6 символов">
+                <input class="auth-input" id="profileSecurityPassword" type="password" placeholder="Мин. 8 символов, Aa1!" autocomplete="new-password">
               </label>
               <label class="auth-field">
                 <span>Подтверждение пароля</span>
@@ -7243,6 +7359,15 @@
     persistTokenCookie(currentToken);
     return d;
   }
+
+  function mfValidatePassword(pw) {
+    if (!pw || pw.length < 8) return 'Пароль: минимум 8 символов';
+    if (!/[a-zа-яё]/u.test(pw)) return 'Пароль должен содержать строчную букву';
+    if (!/[A-ZА-ЯЁ]/u.test(pw)) return 'Пароль должен содержать заглавную букву';
+    if (!/\d/u.test(pw)) return 'Пароль должен содержать цифру';
+    if (!/[^a-zA-Zа-яА-ЯёЁ0-9]/u.test(pw)) return 'Пароль должен содержать спецсимвол (!@#$% и т.п.)';
+    return null;
+  }
   function doLogout() {
     currentToken=null; currentUser=null;
     localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY);
@@ -7363,7 +7488,8 @@
 
     if (!em || !pw)   return showMsg('registerMessage', 'Введите email и пароль', 'error');
     if (pw !== pc)    return showMsg('registerMessage', 'Пароли не совпадают', 'error');
-    if (pw.length < 6) return showMsg('registerMessage', 'Пароль минимум 6 символов', 'error');
+    const pwErr = mfValidatePassword(pw);
+    if (pwErr) return showMsg('registerMessage', pwErr, 'error');
 
     let endpoint = '/register.php';
     let body = { email: em, password: pw };
@@ -7515,7 +7641,8 @@
     const pw = e.target.querySelector('[name=password]')?.value;
     const pc = e.target.querySelector('[name=passwordConfirm]')?.value;
     if (!resetToken) return showMsg('loginMessage', 'Ссылка недействительна. Запросите сброс снова.', 'error');
-    if (!pw || pw.length < 6) return showMsg('loginMessage', 'Пароль минимум 6 символов', 'error');
+    const pwErr = mfValidatePassword(pw);
+    if (pwErr) return showMsg('loginMessage', pwErr, 'error');
     if (pw !== pc) return showMsg('loginMessage', 'Пароли не совпадают', 'error');
     showMsg('loginMessage', 'Сохраняем пароль...', 'info');
     try {
@@ -20683,5 +20810,37 @@
   }
 
 })();
-</script></body>
+</script>
+<script>
+  // Юридические документы (Terms / Privacy) — открытие и закрытие модалок
+  (function () {
+    function openLegal(kind) {
+      var id = kind === 'privacy' ? 'privacyModal' : 'termsModal';
+      var m = document.getElementById(id);
+      if (m) m.classList.remove('is-hidden');
+    }
+    function closeLegal() {
+      var t = document.getElementById('termsModal');
+      var p = document.getElementById('privacyModal');
+      if (t) t.classList.add('is-hidden');
+      if (p) p.classList.add('is-hidden');
+    }
+    document.addEventListener('click', function (e) {
+      var opener = e.target.closest('[data-legal]');
+      if (opener) {
+        e.preventDefault();
+        openLegal(opener.getAttribute('data-legal'));
+        return;
+      }
+      if (e.target.closest('[data-legal-close]')) {
+        e.preventDefault();
+        closeLegal();
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeLegal();
+    });
+  })();
+</script>
+</body>
 </html>

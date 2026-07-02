@@ -38,9 +38,10 @@ try {
         echo json_encode(['error' => 'Неверный формат email']);
         exit;
     }
-    if (strlen($password) < 6) {
+    $pwErr = validatePasswordStrength($password);
+    if ($pwErr) {
         http_response_code(400);
-        echo json_encode(['error' => 'Пароль минимум 6 символов']);
+        echo json_encode(['error' => $pwErr]);
         exit;
     }
     if ($website && !filter_var($website, FILTER_VALIDATE_URL)) {

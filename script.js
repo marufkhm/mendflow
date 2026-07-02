@@ -3649,8 +3649,8 @@ registerForm.addEventListener('submit', async (event) => {
   const passwordConfirm = String(formData.get('passwordConfirm')).trim();
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  if (!firstName || !lastName || !emailValid || password.length < 6) {
-    setRegisterMessage('Проверь поля: имя, фамилия и email обязательны, пароль минимум 6 символов.', 'error');
+  if (!firstName || !lastName || !emailValid || password.length < 8) {
+    setRegisterMessage('Проверь поля: имя, фамилия и email обязательны. Пароль — мин. 8 символов, Aa1!', 'error');
     return;
   }
   if (password !== passwordConfirm) {
@@ -3832,8 +3832,24 @@ if (profileSecurityForm) {
     const password = profileSecurityPassword.value.trim();
     const passwordConfirm = profileSecurityPasswordConfirm.value.trim();
 
-    if (password.length < 6) {
-      setLoginMessage('Новый пароль должен быть не короче 6 символов.', 'error');
+    if (password.length < 8) {
+      setLoginMessage('Новый пароль должен быть не короче 8 символов.', 'error');
+      return;
+    }
+    if (!/[a-zа-яё]/u.test(password)) {
+      setLoginMessage('Пароль должен содержать строчную букву.', 'error');
+      return;
+    }
+    if (!/[A-ZА-ЯЁ]/u.test(password)) {
+      setLoginMessage('Пароль должен содержать заглавную букву.', 'error');
+      return;
+    }
+    if (!/\d/u.test(password)) {
+      setLoginMessage('Пароль должен содержать цифру.', 'error');
+      return;
+    }
+    if (!/[^a-zA-Zа-яА-ЯёЁ0-9]/u.test(password)) {
+      setLoginMessage('Пароль должен содержать спецсимвол (!@#$% и т.п.).', 'error');
       return;
     }
     if (password !== passwordConfirm) {
