@@ -1,0 +1,19 @@
+# Библиотеки — только через require, не напрямую из браузера
+<IfModule mod_authz_core.c>
+  <FilesMatch "(_lib\.php|config\.php|push_helper\.php|feed_ranking\.php|auth_email\.php|mail\.php)$">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+  <FilesMatch "(_lib\.php|config\.php|push_helper\.php|feed_ranking\.php|auth_email\.php|mail\.php)$">
+    Order allow,deny
+    Deny from all
+  </FilesMatch>
+</IfModule>
+
+# InfinityFree / Apache: проброс Authorization в PHP
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>

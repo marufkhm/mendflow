@@ -1,0 +1,90 @@
+Options -Indexes
+DirectoryIndex index.html
+
+# ── Sprint 9: Security Headers ────────────────────────────────
+<IfModule mod_headers.c>
+  # Запрет MIME-sniffing — браузер не должен угадывать тип файла
+  Header always set X-Content-Type-Options "nosniff"
+
+  # Запрет открытия сайта во фрейме (clickjacking)
+  Header always set X-Frame-Options "SAMEORIGIN"
+
+  # Включить встроенную защиту от XSS в старых браузерах
+  Header always set X-XSS-Protection "1; mode=block"
+
+  # Referrer: отправляем только origin при переходе на другой домен
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # HSTS: принудительный HTTPS на 1 год (включать только если есть SSL!)
+  # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+  # Permissions Policy: отключаем ненужные API браузера
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(self)"
+
+  # Content Security Policy
+  # - default-src 'self'                  — всё только с нашего домена
+  # - img-src 'self' data: blob: https:   — картинки из любых https + data URI
+  # - media-src 'self' blob: https:       — видео
+  # - connect-src 'self'                  — XHR/fetch только к нам
+  # - font-src 'self' https://fonts.gstatic.com — Google Fonts
+  # - style-src 'self' 'unsafe-inline' https://fonts.googleapis.com
+  # - script-src 'self' 'unsafe-inline'   — inline JS разрешён (монолитный index.html)
+  #   После Sprint 12 (Vite) убрать 'unsafe-inline' и использовать nonce/hash
+  Header always set Content-Security-Policy "\
+default-src 'self'; \
+script-src 'self' 'unsafe-inline'; \
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
+font-src 'self' https://fonts.gstatic.com; \
+img-src 'self' data: blob: https:; \
+media-src 'self' blob: https:; \
+connect-src 'self'; \
+frame-ancestors 'self'; \
+form-action 'self'; \
+base-uri 'self';"
+
+  # Убираем информацию о сервере
+  Header always unset X-Powered-By
+  Header always unset Server
+</IfModule>
+
+# ── Скрыть PHP-версию ─────────────────────────────────────────
+<IfModule mod_php.c>
+  php_flag expose_php Off
+</IfModule>
+
+# ── Запрет прямого доступа к конфиг-файлам ───────────────────
+<FilesMatch "^(\.env|composer\.(json|lock)|package(-lock)?\.json)$">
+  Order Allow,Deny
+  Deny from all
+</FilesMatch>
+<IfModule mod_authz_core.c>
+  <FilesMatch "^(\.env|composer\.(json|lock)|package(-lock)?\.json)$">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+
+# ── Лимиты загрузки ───────────────────────────────────────────
+<IfModule mod_php.c>
+  php_value upload_max_filesize 64M
+  php_value post_max_size 68M
+  php_value memory_limit 128M
+  php_value max_execution_time 120
+  php_value max_input_time 120
+  php_flag expose_php Off
+</IfModule>
+<IfModule mod_php7.c>
+  php_value upload_max_filesize 64M
+  php_value post_max_size 68M
+  php_value memory_limit 128M
+  php_value max_execution_time 120
+  php_value max_input_time 120
+  php_flag expose_php Off
+</IfModule>
+<IfModule mod_php8.c>
+  php_value upload_max_filesize 64M
+  php_value post_max_size 68M
+  php_value memory_limit 128M
+  php_value max_execution_time 120
+  php_value max_input_time 120
+  php_flag expose_php Off
+</IfModule>

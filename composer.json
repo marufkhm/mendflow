@@ -1,0 +1,11 @@
+{
+    "name": "mendflow/app",
+    "description": "Mendflow social network",
+    "require": {
+        "php": ">=8.0",
+        "minishlink/web-push": "^9.0"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
