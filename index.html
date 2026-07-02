@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=20260702-legal-docs">
+  <link rel="stylesheet" href="./style.css?v=20260703-modal-scroll">
   <script src="./js/mendflow-emojis.js?v=20260701-badge-icons"></script>
   <script src="./js/feed-ranking.js?v=20260625"></script>
   <script src="./js/pwa.js?v=20260620c" defer></script>
@@ -1550,9 +1550,18 @@
             Войди по email и паролю — workspace, проекты, сеть и карьера ждут тебя.
           </p>
           <div class="auth-login-features">
-            <span class="auth-feature-pill">⚡ Мгновенный вход</span>
-            <span class="auth-feature-pill">🔒 Защищённый аккаунт</span>
-            <span class="auth-feature-pill">🚀 Ваш workspace</span>
+            <span class="auth-feature-pill auth-feature-pill--bolt">
+              <span class="auth-feature-pill__ico" aria-hidden="true">⚡</span>
+              <span class="auth-feature-pill__label">Мгновенный вход</span>
+            </span>
+            <span class="auth-feature-pill auth-feature-pill--lock">
+              <span class="auth-feature-pill__ico" aria-hidden="true">🔒</span>
+              <span class="auth-feature-pill__label">Защищённый аккаунт</span>
+            </span>
+            <span class="auth-feature-pill auth-feature-pill--rocket">
+              <span class="auth-feature-pill__ico" aria-hidden="true">🚀</span>
+              <span class="auth-feature-pill__label">Ваш workspace</span>
+            </span>
           </div>
         </div>
 
