@@ -35,23 +35,29 @@ function eventsColumns(PDO $pdo, string $table): array {
 }
 
 function ensureEventsSchema(PDO $pdo): void {
-    if (!in_array('city', eventsColumns($pdo, 'users'), true)) {
-        try { $pdo->exec("ALTER TABLE users ADD COLUMN city VARCHAR(120) NULL AFTER last_seen"); } catch (Throwable $e) {}
+    $userCols = eventsColumns($pdo, 'users');
+    if (!in_array('city', $userCols, true)) {
+        try {
+            if (in_array('last_seen', $userCols, true)) {
+                $pdo->exec("ALTER TABLE users ADD COLUMN city VARCHAR(120) NULL AFTER last_seen");
+            } else {
+                $pdo->exec("ALTER TABLE users ADD COLUMN city VARCHAR(120) NULL");
+            }
+        } catch (Throwable $e) {}
     }
 
     if (!eventsTableExists($pdo, 'user_interests')) {
         try {
             $pdo->exec("
-                CREATE TABLE user_interests (
+                CREATE TABLE IF NOT EXISTS user_interests (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     user_id INT NOT NULL,
                     interest_name VARCHAR(80) NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE KEY uniq_user_interest (user_id, interest_name),
                     INDEX idx_user_interests_user (user_id),
-                    INDEX idx_user_interests_name (interest_name),
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                )
+                    INDEX idx_user_interests_name (interest_name)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
         } catch (Throwable $e) {}
     }
@@ -59,7 +65,7 @@ function ensureEventsSchema(PDO $pdo): void {
     if (!eventsTableExists($pdo, 'events')) {
         try {
             $pdo->exec("
-                CREATE TABLE events (
+                CREATE TABLE IF NOT EXISTS events (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     title VARCHAR(180) NOT NULL,
                     description TEXT NOT NULL,
@@ -81,9 +87,8 @@ function ensureEventsSchema(PDO $pdo): void {
                     INDEX idx_events_city (city),
                     INDEX idx_events_category (category),
                     INDEX idx_events_format (event_format),
-                    INDEX idx_events_creator (creator_id, creator_type),
-                    FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
-                )
+                    INDEX idx_events_creator (creator_id, creator_type)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
         } catch (Throwable $e) {}
     }
@@ -91,7 +96,7 @@ function ensureEventsSchema(PDO $pdo): void {
     if (!eventsTableExists($pdo, 'event_participants')) {
         try {
             $pdo->exec("
-                CREATE TABLE event_participants (
+                CREATE TABLE IF NOT EXISTS event_participants (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     event_id INT NOT NULL,
                     user_id INT NOT NULL,
@@ -99,10 +104,8 @@ function ensureEventsSchema(PDO $pdo): void {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE KEY uniq_event_user (event_id, user_id),
                     INDEX idx_event_participants_event (event_id),
-                    INDEX idx_event_participants_user (user_id),
-                    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                )
+                    INDEX idx_event_participants_user (user_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
         } catch (Throwable $e) {}
     }
@@ -110,14 +113,13 @@ function ensureEventsSchema(PDO $pdo): void {
     if (!eventsTableExists($pdo, 'event_tags')) {
         try {
             $pdo->exec("
-                CREATE TABLE event_tags (
+                CREATE TABLE IF NOT EXISTS event_tags (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     event_id INT NOT NULL,
                     tag_name VARCHAR(80) NOT NULL,
                     INDEX idx_event_tags_event (event_id),
-                    INDEX idx_event_tags_name (tag_name),
-                    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
-                )
+                    INDEX idx_event_tags_name (tag_name)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
         } catch (Throwable $e) {}
     }
@@ -125,7 +127,7 @@ function ensureEventsSchema(PDO $pdo): void {
     if (!eventsTableExists($pdo, 'event_reviews')) {
         try {
             $pdo->exec("
-                CREATE TABLE event_reviews (
+                CREATE TABLE IF NOT EXISTS event_reviews (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     event_id INT NOT NULL,
                     user_id INT NOT NULL,
@@ -133,10 +135,8 @@ function ensureEventsSchema(PDO $pdo): void {
                     comment TEXT DEFAULT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE KEY uniq_event_review_user (event_id, user_id),
-                    INDEX idx_event_reviews_event (event_id),
-                    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                )
+                    INDEX idx_event_reviews_event (event_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
         } catch (Throwable $e) {}
     }

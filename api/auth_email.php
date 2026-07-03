@@ -15,10 +15,12 @@ function ensureAuthEmailSchema(PDO $pdo): void {
             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
         ")->fetchAll(PDO::FETCH_COLUMN);
 
-        if (!in_array('email_verified_at', $cols, true)) {
+        try {
             $pdo->exec("ALTER TABLE users ADD COLUMN email_verified_at DATETIME NULL");
+        } catch (Throwable $e) {}
+        try {
             $pdo->exec("UPDATE users SET email_verified_at = COALESCE(created_at, NOW()) WHERE email_verified_at IS NULL");
-        }
+        } catch (Throwable $e) {}
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS email_verifications (
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!checkRateLimit('login', 5, 900)) {
+if (!checkRateLimit('login', 40, 900)) {
     http_response_code(429);
     echo json_encode([
         'error' => 'Слишком много попыток входа. Подождите 15 минут и попробуйте снова.',
@@ -32,8 +32,15 @@ try {
     }
 
     ensureAuthEmailSchema($pdo);
+    ensureSessionsSchema($pdo);
 
-    $stmt = $pdo->prepare("SELECT id, first_name, last_name, password_hash, email_verified_at FROM users WHERE email = ? LIMIT 1");
+    $userCols   = tableColumns('users');
+    $selectCols = ['id', 'first_name', 'last_name', 'password_hash'];
+    if (in_array('email_verified_at', $userCols, true)) {
+        $selectCols[] = 'email_verified_at';
+    }
+
+    $stmt = $pdo->prepare('SELECT ' . implode(', ', $selectCols) . ' FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -43,7 +50,10 @@ try {
         exit;
     }
 
-    if (empty($user['email_verified_at'])) {
+    $needsEmailVerify = in_array('email_verified_at', $userCols, true)
+        && empty($user['email_verified_at']);
+
+    if ($needsEmailVerify) {
         $verify = createAndSendVerification($pdo, (int)$user['id'], $email, getUserDisplayName($user));
         http_response_code(403);
         echo json_encode(array_merge([

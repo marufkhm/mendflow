@@ -51,10 +51,52 @@ try {
     date_default_timezone_set('UTC');
     $pdo->exec("SET time_zone = '+00:00'");
     $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+    ensureSessionsSchema($pdo);
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Ошибка подключения к БД']);
     exit;
+}
+
+function ensureSessionsSchema(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $sqlWithFk = "CREATE TABLE IF NOT EXISTS sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        token VARCHAR(512) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_sessions_token (token),
+        KEY idx_sessions_user (user_id),
+        KEY idx_sessions_expires (expires_at),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+
+    $sqlNoFk = "CREATE TABLE IF NOT EXISTS sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        token VARCHAR(512) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_sessions_token (token),
+        KEY idx_sessions_user (user_id),
+        KEY idx_sessions_expires (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+
+    try {
+        $pdo->exec($sqlWithFk);
+    } catch (Throwable $e) {
+        try {
+            $pdo->exec($sqlNoFk);
+        } catch (Throwable $e2) {
+        }
+    }
 }
 
 /** Запрос идёт напрямую в этот PHP-файл (не через include). */
