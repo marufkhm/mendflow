@@ -7702,9 +7702,11 @@
       }, 800);
     } catch(err) {
       const info = err.data;
-      if (info && info.requires_verification) {
+      if (info && (info.requires_verification || info.email_verified === false)) {
         const code = info.verification_code || info.dev_code;
         openVerifyStep(info.email || em, code, info.message || 'Подтвердите email, чтобы войти', info.email_sent);
+        showAuth('register');
+        showMsg('loginMessage', info.message || 'Подтвердите email', 'info');
         return;
       }
       showMsg('loginMessage', err.message, 'error');

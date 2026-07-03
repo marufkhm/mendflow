@@ -1,7 +1,5 @@
 -- ⚠️  Только если база УЖЕ есть (таблица users существует).
 -- Если users нет — сначала импортируй mendflow_schema.sql целиком!
---
---   mysql -u mendflow -p mendflow < mendflow_schema.sql
 
 CREATE TABLE IF NOT EXISTS sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -14,9 +12,5 @@ CREATE TABLE IF NOT EXISTS sessions (
     KEY idx_sessions_expires (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- MariaDB 10.0.2+ / MySQL 8.0.12+
-ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at DATETIME NULL;
-
-UPDATE users
-SET email_verified_at = COALESCE(created_at, NOW())
-WHERE email_verified_at IS NULL;
+-- НЕ запускай массовый UPDATE email_verified_at — отключит верификацию!
+-- Для теста используй reset_email_verification.sql

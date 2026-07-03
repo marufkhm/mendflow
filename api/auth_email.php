@@ -15,12 +15,15 @@ function ensureAuthEmailSchema(PDO $pdo): void {
             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
         ")->fetchAll(PDO::FETCH_COLUMN);
 
-        try {
-            $pdo->exec("ALTER TABLE users ADD COLUMN email_verified_at DATETIME NULL");
-        } catch (Throwable $e) {}
-        try {
-            $pdo->exec("UPDATE users SET email_verified_at = COALESCE(created_at, NOW()) WHERE email_verified_at IS NULL");
-        } catch (Throwable $e) {}
+        if (!in_array('email_verified_at', $cols, true)) {
+            try {
+                $pdo->exec("ALTER TABLE users ADD COLUMN email_verified_at DATETIME NULL");
+            } catch (Throwable $e) {}
+            // Только для уже существовавших аккаунтов до включения верификации
+            try {
+                $pdo->exec("UPDATE users SET email_verified_at = COALESCE(created_at, NOW()) WHERE email_verified_at IS NULL");
+            } catch (Throwable $e) {}
+        }
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS email_verifications (
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -96,10 +99,9 @@ function createAndSendVerification(PDO $pdo, int $userId, string $email, string 
         }
     }
     $sent = $mailResult['ok'];
-    $showCode = !$sent
-        || !$hasRealMailer
+    $showCode = env('MAIL_SHOW_CODE', '0') === '1'
         || env('APP_ENV', 'production') !== 'production'
-        || env('MAIL_SHOW_CODE', '0') === '1';
+        || (!$sent && !$hasRealMailer);
 
     $result = [
         'sent'        => $sent,
