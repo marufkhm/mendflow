@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!checkRateLimit('register', 3, 3600)) {
+if (!checkRateLimit('register', 15, 3600)) {
     http_response_code(429);
     echo json_encode([
         'error' => 'Слишком много попыток регистрации. Попробуйте через час.',
