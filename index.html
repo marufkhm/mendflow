@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=20260703-modal-scroll">
+  <link rel="stylesheet" href="./style.css?v=20260703-profile-empty">
   <script src="./js/mendflow-emojis.js?v=20260701-badge-icons"></script>
   <script src="./js/feed-ranking.js?v=20260625"></script>
   <script src="./js/pwa.js?v=20260620c" defer></script>
@@ -9791,8 +9791,9 @@
     return '<div class="upf-feed-loading"><span class="upf-feed-loading-spinner"></span>Загружаем...</div>';
   }
 
-  function profileFeedEmptyHtml(icon, text) {
-    return `<div class="upf-feed-empty"><div class="upf-feed-empty-icon">${icon}</div><p>${esc(text)}</p></div>`;
+  function profileFeedEmptyHtml(icon, text, kind = 'posts') {
+    const safeKind = ['posts', 'reposts', 'error'].includes(kind) ? kind : 'posts';
+    return `<div class="upf-feed-empty"><div class="upf-feed-empty-icon upf-feed-empty-icon--${safeKind}" aria-hidden="true"><span class="upf-feed-empty-emoji">${icon}</span></div><p>${esc(text)}</p></div>`;
   }
 
   function enrichPostForProfile(post) {
@@ -9810,7 +9811,7 @@
     if (!listEl) return;
     listEl.className = 'upf-feed-list';
     if (!posts.length) {
-      listEl.innerHTML = profileFeedEmptyHtml('📝', emptyText);
+      listEl.innerHTML = profileFeedEmptyHtml('📝', emptyText, 'posts');
       return;
     }
     listEl.innerHTML = '';
@@ -9822,7 +9823,7 @@
     if (!listEl) return;
     listEl.className = 'upf-feed-list';
     if (!reposts.length) {
-      listEl.innerHTML = profileFeedEmptyHtml('↻', 'Репостов пока нет. Поделись чужим постом — он появится здесь.');
+      listEl.innerHTML = profileFeedEmptyHtml('↻', 'Репостов пока нет. Поделись чужим постом — он появится здесь.', 'reposts');
       return;
     }
     listEl.innerHTML = '';
@@ -13693,7 +13694,7 @@
         if ($('upStatLikes')) $('upStatLikes').textContent = totalLikes;
         if (postsList) renderPostsToProfileList(myPosts, postsList, 'Публикаций пока нет.');
       } catch(e) {
-        if (postsList) postsList.innerHTML = profileFeedEmptyHtml('📝', 'Публикации недоступны.');
+        if (postsList) postsList.innerHTML = profileFeedEmptyHtml('📝', 'Публикации недоступны.', 'posts');
       }
 
       // ── Друзья пользователя ──────────────────────────────────
