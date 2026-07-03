@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="mendflow-build" content="20260629-index-fix">
+  <meta name="mendflow-build" content="20260703-nav-routing">
   <title>mendflow</title>
   <script src="./js/api-base.js?v=20260703-auth-verify"></script>
   <link rel="manifest" href="./manifest.json">
@@ -5949,6 +5949,41 @@
   .upf-cv-pct{font-size:30px;font-weight:800;color:var(--accent,#7c3aed)}
   /* Tab panels */
   .upf-feed{display:flex;flex-direction:column}
+  /* Пустое состояние ленты профиля (inline — не зависит от кэша style.css) */
+  .upf-feed-list .upf-feed-empty{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    padding:52px 28px;border-radius:22px;
+    border:1.5px dashed rgba(124,58,237,.28);
+    background:linear-gradient(165deg,rgba(255,255,255,.98) 0%,rgba(245,243,255,.92) 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 12px 36px rgba(124,58,237,.08);
+  }
+  .upf-feed-list .upf-feed-empty-icon{
+    width:72px;height:72px;border-radius:22px;display:flex;align-items:center;justify-content:center;
+    margin-bottom:16px;border:1px solid transparent;transition:transform .28s ease,box-shadow .28s ease;
+  }
+  .upf-feed-list .upf-feed-empty:hover .upf-feed-empty-icon{transform:translateY(-4px) scale(1.04)}
+  .upf-feed-list .upf-feed-empty-icon--posts{
+    background:linear-gradient(145deg,rgba(167,139,250,.5),rgba(124,58,237,.2));
+    border-color:rgba(124,58,237,.32);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 8px rgba(124,58,237,.08),0 16px 32px rgba(124,58,237,.22);
+  }
+  .upf-feed-list .upf-feed-empty:hover .upf-feed-empty-icon--posts{
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.65),0 0 0 10px rgba(124,58,237,.12),0 20px 40px rgba(124,58,237,.28);
+  }
+  .upf-feed-list .upf-feed-empty-icon--reposts{
+    background:linear-gradient(145deg,rgba(34,211,238,.38),rgba(99,102,241,.18));
+    border-color:rgba(34,211,238,.35);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 0 0 8px rgba(34,211,238,.1),0 16px 32px rgba(34,211,238,.18);
+  }
+  .upf-feed-list .upf-feed-empty-svg{width:34px;height:34px;stroke-width:2.2}
+  .upf-feed-list .upf-feed-empty-icon--posts .upf-feed-empty-svg{color:#6d28d9;filter:drop-shadow(0 2px 8px rgba(124,58,237,.35))}
+  .upf-feed-list .upf-feed-empty-icon--reposts .upf-feed-empty-svg{color:#0891b2;filter:drop-shadow(0 2px 8px rgba(34,211,238,.3))}
+  .upf-feed-list .upf-feed-empty p{margin:0;font-size:14px;font-weight:600;line-height:1.55;color:#6b7280;max-width:320px;letter-spacing:.01em}
+  [data-theme="dark"] .upf-feed-list .upf-feed-empty{background:linear-gradient(165deg,#16101f,#1c152a);border-color:rgba(167,139,250,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 12px 32px rgba(0,0,0,.3)}
+  [data-theme="dark"] .upf-feed-list .upf-feed-empty p{color:#a8a3b8}
+  [data-theme="dark"] .upf-feed-list .upf-feed-empty-icon--posts{background:linear-gradient(145deg,rgba(167,139,250,.32),rgba(91,33,182,.24));border-color:rgba(167,139,250,.38);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 0 0 8px rgba(124,58,237,.14),0 16px 32px rgba(124,58,237,.25)}
+  [data-theme="dark"] .upf-feed-list .upf-feed-empty-icon--posts .upf-feed-empty-svg{color:#c4b5fd}
+  [data-theme="dark"] .upf-feed-list .upf-feed-empty-icon--reposts .upf-feed-empty-svg{color:#67e8f9}
   .upf-tab-panel{display:none}
   .upf-tab-panel.is-active{display:block}
   /* Settings */
@@ -6807,10 +6842,16 @@
   }
   async function parseJsonResponse(response, source='Сервер') {
     const raw = await response.text();
+    if (response.status === 413) {
+      throw new Error('Файл слишком большой для сервера (413). Админ: на сервере выполните sudo bash deploy/fix-413-upload.sh. Сожмите фото или выберите файл меньше 25 МБ.');
+    }
     let data;
     try { data = raw ? JSON.parse(raw) : {}; }
     catch(e) {
       const preview = raw.replace(/<[^>]+>/g,'').trim().slice(0,300);
+      if (/413|Request Entity Too Large/i.test(preview)) {
+        throw new Error('Файл слишком большой для сервера (nginx 413). Сожмите изображение или обратитесь к администратору.');
+      }
       throw new Error(`${source} вернул не JSON: ${preview}`);
     }
     if(!response.ok) throw new Error(data.error || `${source}: HTTP ${response.status}`);
@@ -6899,8 +6940,111 @@
     applyTheme(t); localStorage.setItem('mendflow_theme', t);
   }
 
+  /* ═══ МАРШРУТЫ / URL (сохранение раздела при F5) ═══════════════ */
+  const MF_ROUTE_VIEWS = {
+    feed: 'workspaceView',
+    career: 'internshipsView',
+    projects: 'projectsView',
+    courses: 'coursesView',
+    events: 'eventsView',
+    ideas: 'ideasView',
+    network: 'connectView',
+    chats: 'chatsView',
+    profile: 'clientProfileView',
+  };
+  const MF_VIEW_ROUTES = Object.fromEntries(
+    Object.entries(MF_ROUTE_VIEWS).map(([route, viewId]) => [viewId, route])
+  );
+
+  function mfParseHash() {
+    const parts = (location.hash || '').replace(/^#\/?/, '').split('/').filter(Boolean);
+    const route = parts[0] || localStorage.getItem('mf_last_view') || 'feed';
+    const viewId = MF_ROUTE_VIEWS[route] || 'workspaceView';
+    const sub = parts[1] || null;
+    return { route, viewId, sub };
+  }
+
+  function mfWriteHash(viewId, opts = {}) {
+    const route = MF_VIEW_ROUTES[viewId] || 'feed';
+    let hash = `#/${route}`;
+    if (viewId === 'workspaceView' && feedFilter.section && feedFilter.section !== 'feed') {
+      hash += `/${feedFilter.section}`;
+    }
+    const url = `${location.pathname}${location.search}${hash}`;
+    const state = { viewId, section: feedFilter.section };
+    if (opts.replace) history.replaceState(state, '', url);
+    else history.pushState(state, '', url);
+    localStorage.setItem('mf_last_view', route);
+    localStorage.setItem('mf_last_section', feedFilter.section || 'feed');
+  }
+
+  function mfRestoreAppView(opts = {}) {
+    const { viewId, sub } = mfParseHash();
+    if (viewId === 'workspaceView' && sub && ['discussions', 'articles'].includes(sub)) {
+      feedFilter.section = sub;
+    }
+    showView(viewId, { skipHash: true, replaceHash: !!opts.replaceHash, ...opts });
+    return viewId;
+  }
+
+  function refreshViewData(viewId) {
+    switch (viewId) {
+      case 'workspaceView':
+        updateFeedSectionUI();
+        if (feedFilter.section === 'discussions') {
+          if (typeof loadDiscussions === 'function') loadDiscussions(window.discState?.tab || 'new');
+        } else if (feedFilter.section === 'articles') {
+          if (typeof loadArticles === 'function') loadArticles(window.artState?.tab || 'popular');
+        } else if (typeof loadFeed === 'function') {
+          loadFeed(1, false, { force: true });
+        }
+        break;
+      case 'connectView':
+        loadNetworkData(true);
+        loadFriendRecommendations(true);
+        break;
+      case 'projectsView':
+        if (prjState.tab === 'my') prjLoadMy();
+        else prjLoadExplore();
+        break;
+      case 'eventsView':
+        window.MF_EMOJI?.attachIcons?.($('eventsView'));
+        loadEvents();
+        break;
+      case 'coursesView':
+        window.MF_EMOJI?.attachIcons?.($('coursesView'));
+        if (typeof crsLoadList === 'function') crsLoadList();
+        break;
+      case 'ideasView':
+        window.MF_EMOJI?.attachIcons?.($('ideasView'));
+        frLoadPlatformIdeas();
+        break;
+      case 'internshipsView':
+        window.MF_EMOJI?.attachIcons?.($('internshipsView'));
+        careerUpdateRoleUI();
+        careerSwitchTab(careerState.tab || 'feed');
+        break;
+      case 'chatsView':
+        window.MF_EMOJI?.attachIcons?.($('chatsView'));
+        break;
+      case 'clientProfileView':
+        if (currentUser) {
+          updateProfileActivity();
+          loadProfilePosts();
+          loadFriends();
+          loadProfileBadges(currentUser.id, {
+            compactId: 'clientProfileBadges',
+            panelId: 'clientProfileBadgesPanel',
+          });
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   /* ═══ НАВИГАЦИЯ — переключение разделов ═════════════════════ */
-  function showView(id) {
+  function showView(id, opts = {}) {
     if (id !== 'projectsView') {
       PRJ_MODAL_IDS.forEach(mid => prjHideModal(mid));
     }
@@ -6915,50 +7059,8 @@
     });
     if (id !== 'chatsView') $('chatsView')?.classList.remove('has-active-chat');
     window.scrollTo(0, 0);
-    if (id === 'connectView') {
-      loadNetworkData(true);
-      loadFriendRecommendations(true);
-    }
-    if (id === 'projectsView') {
-      if (prjState.tab === 'my') prjLoadMy();
-      else prjLoadExplore();
-    }
-    if (id === 'eventsView') {
-      window.MF_EMOJI?.attachIcons?.($('eventsView'));
-      loadEvents();
-    }
-    if (id === 'coursesView') {
-      window.MF_EMOJI?.attachIcons?.($('coursesView'));
-      if (typeof crsLoadList === 'function') crsLoadList();
-    }
-    if (id === 'ideasView') {
-      window.MF_EMOJI?.attachIcons?.($('ideasView'));
-      frLoadPlatformIdeas();
-    }
-    if (id === 'internshipsView') {
-      window.MF_EMOJI?.attachIcons?.($('internshipsView'));
-      careerUpdateRoleUI();
-      careerSwitchTab(careerState.tab || 'feed');
-    }
-    if (id === 'chatsView') {
-      window.MF_EMOJI?.attachIcons?.($('chatsView'));
-    }
-    if (id === 'workspaceView') {
-      if (feedFilter.mode !== 'mixed') {
-        feedFilter.mode = 'mixed';
-        if (typeof updateFeedModeUI === 'function') updateFeedModeUI();
-        if (typeof window.updateFilterButtonState === 'function') window.updateFilterButtonState();
-        if (window.MF_CACHE) window.MF_CACHE.invalidate(feedCacheKey(1));
-      }
-      updateFeedSectionUI();
-      if (feedFilter.section === 'discussions') {
-        if (typeof loadDiscussions === 'function') loadDiscussions(window.discState?.tab || 'new');
-      } else if (feedFilter.section === 'articles') {
-        if (typeof loadArticles === 'function') loadArticles(window.artState?.tab || 'popular');
-      } else if (typeof loadFeed === 'function' && postsList && !document.querySelector('.feed-section-panel:not(.is-hidden) .social-post')) {
-        loadFeed(1, false);
-      }
-    }
+    if (!opts.skipRefresh) refreshViewData(id);
+    if (!opts.skipHash && MF_VIEW_ROUTES[id]) mfWriteHash(id, { replace: !!opts.replaceHash });
     if (window.MF_PWA?.syncBottomNav) window.MF_PWA.syncBottomNav(id);
   }
   window.showView = showView;
@@ -6967,6 +7069,20 @@
     // Пункты меню
     document.querySelectorAll('[data-view-target]').forEach(btn => {
       btn.addEventListener('click', () => { if(btn.dataset.viewTarget) showView(btn.dataset.viewTarget); });
+    });
+    window.addEventListener('hashchange', () => {
+      if (!currentToken || $('appShell')?.classList.contains('is-hidden')) return;
+      const { viewId, sub } = mfParseHash();
+      const active = document.querySelector('.app-view.app-view-active')?.id;
+      if (active === viewId) {
+        if (viewId !== 'workspaceView' || !sub || sub === feedFilter.section) return;
+      }
+      mfRestoreAppView({ skipHash: true });
+    });
+    window.addEventListener('popstate', (e) => {
+      if (!currentToken || $('appShell')?.classList.contains('is-hidden')) return;
+      if (e.state?.viewId) showView(e.state.viewId, { skipHash: true });
+      else mfRestoreAppView({ skipRefresh: false });
     });
     // Пилюля профиля в топбаре
     $('userPill')?.addEventListener('click', () => {
@@ -6994,18 +7110,6 @@
       const profile = loadProfile();
       showView('clientProfileView');
       applyProfileToUI(profile);
-      if (currentUser) {
-        updateProfileActivity();
-        loadFriends();
-        loadProfilePosts();
-        loadProfileBadges(currentUser.id, {
-          compactId: 'clientProfileBadges',
-          panelId: 'clientProfileBadgesPanel',
-        });
-        if (typeof crsLoadAuthorReviews === 'function') {
-          crsLoadAuthorReviews(currentUser.id, 'clientCourseReviewsList');
-        }
-      }
     });
     // Назад в профиле
     $('clientProfileBackButton')?.addEventListener('click', () => showView('workspaceView'));
@@ -7131,9 +7235,9 @@
       if (typeof window._fallbackUniView === 'function') window._fallbackUniView();
       return;
     }
-    showView('workspaceView');
     pollNotifications();
     document.dispatchEvent(new CustomEvent('mf:auth-ready'));
+    mfRestoreAppView({ replaceHash: true });
   }
   function showAuth(screen='register', regStep) {
     $('appShell')?.classList.add('is-hidden');
@@ -7440,7 +7544,6 @@
   $('regSuccessLoginButton')?.addEventListener('click', ()=>{
     if (currentToken) {
       showApp();
-      loadFeed();
     } else {
       showAuth('login');
     }
@@ -7574,7 +7677,6 @@
       setTimeout(async () => {
         await refreshAccountBranding();
         showApp();
-        loadFeed();
       }, 800);
     } catch(err) {
       showMsg('registerMessage', err.message, 'error');
@@ -7697,7 +7799,6 @@
       setTimeout(async () => {
         await refreshAccountBranding();
         showApp();
-        loadFeed();
       }, 800);
     } catch(err) {
       const info = err.data;
@@ -7999,7 +8100,8 @@
       return;
     }
     if (window.MF_CACHE) window.MF_CACHE.invalidate(feedCacheKey(1));
-    loadFeed(1, false);
+    loadFeed(1, false, { force: true });
+    if (MF_VIEW_ROUTES.workspaceView) mfWriteHash('workspaceView', { replace: true });
   }
   window.switchFeedSection = switchFeedSection;
 
@@ -8227,8 +8329,8 @@
     return renderPost(p);
   }
 
-  async function loadFeed(page=1, append=false) {
-    if(isLoading) return;
+  async function loadFeed(page=1, append=false, opts={}) {
+    if(isLoading && !opts.force) return;
     if (feedFilter.section === 'discussions' || feedFilter.section === 'articles') return;
     isLoading=true;
 
@@ -9360,7 +9462,6 @@
         } catch (_) {}
       }
       showApp();
-      loadFeed();
       setTimeout(prjLoadMy, 500);
       setTimeout(loadFriends, 800);
       setTimeout(loadFriendRecommendations, 1200);
@@ -9791,9 +9892,16 @@
     return '<div class="upf-feed-loading"><span class="upf-feed-loading-spinner"></span>Загружаем...</div>';
   }
 
-  function profileFeedEmptyHtml(icon, text, kind = 'posts') {
+  function profileEmptyIcon(kind) {
+    if (kind === 'reposts') {
+      return '<svg class="upf-feed-empty-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>';
+    }
+    return '<svg class="upf-feed-empty-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+  }
+
+  function profileFeedEmptyHtml(text, kind = 'posts') {
     const safeKind = ['posts', 'reposts', 'error'].includes(kind) ? kind : 'posts';
-    return `<div class="upf-feed-empty"><div class="upf-feed-empty-icon upf-feed-empty-icon--${safeKind}" aria-hidden="true"><span class="upf-feed-empty-emoji">${icon}</span></div><p>${esc(text)}</p></div>`;
+    return `<div class="upf-feed-empty"><div class="upf-feed-empty-icon upf-feed-empty-icon--${safeKind}" aria-hidden="true">${profileEmptyIcon(safeKind)}</div><p>${esc(text)}</p></div>`;
   }
 
   function enrichPostForProfile(post) {
@@ -9811,7 +9919,7 @@
     if (!listEl) return;
     listEl.className = 'upf-feed-list';
     if (!posts.length) {
-      listEl.innerHTML = profileFeedEmptyHtml('📝', emptyText, 'posts');
+      listEl.innerHTML = profileFeedEmptyHtml(emptyText, 'posts');
       return;
     }
     listEl.innerHTML = '';
@@ -9823,7 +9931,7 @@
     if (!listEl) return;
     listEl.className = 'upf-feed-list';
     if (!reposts.length) {
-      listEl.innerHTML = profileFeedEmptyHtml('↻', 'Репостов пока нет. Поделись чужим постом — он появится здесь.', 'reposts');
+      listEl.innerHTML = profileFeedEmptyHtml('Репостов пока нет. Поделись чужим постом — он появится здесь.', 'reposts');
       return;
     }
     listEl.innerHTML = '';
@@ -13694,7 +13802,7 @@
         if ($('upStatLikes')) $('upStatLikes').textContent = totalLikes;
         if (postsList) renderPostsToProfileList(myPosts, postsList, 'Публикаций пока нет.');
       } catch(e) {
-        if (postsList) postsList.innerHTML = profileFeedEmptyHtml('📝', 'Публикации недоступны.', 'posts');
+        if (postsList) postsList.innerHTML = profileFeedEmptyHtml('Публикации недоступны.', 'posts');
       }
 
       // ── Друзья пользователя ──────────────────────────────────
@@ -20609,7 +20717,7 @@
 
     window.loadFeedCached = async function(page = 1, append = false, forceFresh = false) {
       const cacheKey = 'feed_p' + page;
-      const list = document.getElementById('postsList') || document.querySelector('.posts-list');
+      const list = document.getElementById('workspacePostsList');
 
       if (!append && !forceFresh) {
         // Show cached instantly
@@ -20707,10 +20815,9 @@
 
   /* ── Show skeleton on initial feed load ───────────────────── */
   function onAppReady() {
-    // Feed skeletons on first load
-    const postsList = document.getElementById('postsList') || document.querySelector('.posts-list');
-    if (postsList && !postsList.children.length) {
-      postsList.innerHTML = Array(3).fill(0).map(skeletonPost).join('');
+    const postsListEl = document.getElementById('workspacePostsList');
+    if (postsListEl && !postsListEl.children.length) {
+      postsListEl.innerHTML = Array(3).fill(0).map(skeletonPost).join('');
     }
   }
 
@@ -20774,28 +20881,29 @@
       });
     }, { threshold: 0.08 });
 
-    // Observe cards as they appear
+    function shouldStagger(node) {
+      if (!node?.classList) return false;
+      if (node.classList.contains('social-post')) return false;
+      if (node.closest?.('#workspacePostsList, .upf-feed-list')) return false;
+      return node.classList.contains('panel')
+        || node.classList.contains('event-card-full')
+        || node.classList.contains('prj-card')
+        || node.classList.contains('connect-card');
+    }
+
     const domObserver = new MutationObserver((mutations) => {
       mutations.forEach(m => {
         m.addedNodes.forEach(node => {
           if (node.nodeType !== 1) return;
-          if (node.classList?.contains('panel') ||
-              node.classList?.contains('event-card-full') ||
-              node.classList?.contains('prj-card') ||
-              node.classList?.contains('connect-card')) {
-            node.style.opacity = '0';
-            node.style.transform = 'translateY(16px)';
-            node.style.transition = 'opacity .28s ease, transform .28s ease';
-            observer.observe(node);
-          }
-          // Also check children
-          node.querySelectorAll?.('.panel, .event-card-full, .prj-card, .connect-card')
-            .forEach(child => {
-              child.style.opacity = '0';
-              child.style.transform = 'translateY(16px)';
-              child.style.transition = 'opacity .28s ease, transform .28s ease';
-              observer.observe(child);
-            });
+          const targets = shouldStagger(node) ? [node] : [];
+          node.querySelectorAll?.('.event-card-full, .prj-card, .connect-card, .panel:not(.social-post)')
+            .forEach(child => { if (shouldStagger(child)) targets.push(child); });
+          targets.forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(16px)';
+            el.style.transition = 'opacity .28s ease, transform .28s ease';
+            observer.observe(el);
+          });
         });
       });
     });

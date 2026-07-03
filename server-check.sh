@@ -100,6 +100,16 @@ if command -v curl >/dev/null 2>&1; then
     && ok "ping.php OK" \
     || fail "ping.php: $PING"
 
+  LIMITS=$(curl -sS "${APP_URL}/api/ping.php?limits=1" 2>/dev/null || echo '{}')
+  if echo "$LIMITS" | grep -q 'upload_max_filesize'; then
+    UP=$(echo "$LIMITS" | grep -o '"upload_max_filesize":"[^"]*"' | cut -d'"' -f4)
+    PO=$(echo "$LIMITS" | grep -o '"post_max_size":"[^"]*"' | cut -d'"' -f4)
+    ok "PHP-FPM limits: upload=$UP post=$PO"
+    if [[ "$UP" == "2M" ]] || [[ "$PO" == "8M" ]]; then
+      warn "PHP-FPM всё ещё 2M/8M — выполните: sudo bash deploy/fix-413-upload.sh"
+    fi
+  fi
+
   TEST_EMAIL="srv-$(date +%s)@example.com"
   REG=$(curl -sS -X POST "${APP_URL}/api/register.php" \
     -H "Content-Type: application/json" \

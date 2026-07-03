@@ -10,8 +10,11 @@ Production: **DigitalOcean** `/var/www/html/mendflow`, домен **https://mend
 ## Перед каждым деплоем (обязательно)
 
 1. Запусти `./check-server-ready.sh` локально — должен быть **OK**
-2. Упакуй: `./pack-deploy.sh` (или `./pack-auth.sh` только для auth)
-3. На сервере после распаковки: `bash server-check.sh`
+2. Быстрый деплой с Mac: **`./deploy.sh`** (rsync, ~секунды)
+3. Полный архив: **`./deploy.sh full`**
+4. На сервере после первого раза: `bash server-check.sh` (или встроено в `deploy.sh full`)
+
+Старые скрипты: `pack-deploy.sh`, `deploy-auth.sh` — по-прежнему работают.
 
 ## Критичные файлы auth
 
