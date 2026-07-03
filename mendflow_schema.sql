@@ -122,16 +122,17 @@ CREATE TABLE IF NOT EXISTS friend_requests (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS friendships (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    user1_id   INT NOT NULL,
-    user2_id   INT NOT NULL,
-    confirmed  TINYINT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_friendship (user1_id, user2_id),
-    INDEX idx_friendships_u1 (user1_id),
-    INDEX idx_friendships_u2 (user2_id),
-    FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id   INT NOT NULL,
+    receiver_id INT NOT NULL,
+    status      ENUM('pending','accepted','rejected') NOT NULL DEFAULT 'accepted',
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_friendship (sender_id, receiver_id),
+    INDEX idx_friendship_sender (sender_id),
+    INDEX idx_friendship_receiver (receiver_id),
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS messages (

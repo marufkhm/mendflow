@@ -292,6 +292,93 @@ function tableColumns($table) {
     return $cache[$table];
 }
 
+/**
+ * Гарантирует, что таблица `friendships` имеет схему, которую ожидает код:
+ * sender_id / receiver_id / status / created_at / updated_at.
+ * Чинит старые установки (user1_id / user2_id / confirmed). Idempotent.
+ */
+function ensureFriendshipsSchema() {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    global $pdo;
+    try {
+        $exists = $pdo->query(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'friendships'"
+        )->fetchColumn();
+
+        if (!$exists) {
+            $pdo->exec(
+                "CREATE TABLE friendships (
+                    id          INT AUTO_INCREMENT PRIMARY KEY,
+                    sender_id   INT NOT NULL,
+                    receiver_id INT NOT NULL,
+                    status      ENUM('pending','accepted','rejected') NOT NULL DEFAULT 'accepted',
+                    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uq_friendship (sender_id, receiver_id),
+                    INDEX idx_friendship_sender (sender_id),
+                    INDEX idx_friendship_receiver (receiver_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+            return;
+        }
+
+        $cols = $pdo->query(
+            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'friendships'"
+        )->fetchAll(PDO::FETCH_COLUMN);
+        $cols = array_map('strval', $cols);
+        $has  = function ($c) use ($cols) { return in_array($c, $cols, true); };
+
+        // Уже правильная схема — ничего не делаем
+        if ($has('sender_id') && $has('receiver_id') && $has('status')) {
+            return;
+        }
+
+        if (!$has('sender_id'))   $pdo->exec("ALTER TABLE friendships ADD COLUMN sender_id INT NULL");
+        if (!$has('receiver_id')) $pdo->exec("ALTER TABLE friendships ADD COLUMN receiver_id INT NULL");
+        if (!$has('status'))      $pdo->exec("ALTER TABLE friendships ADD COLUMN status ENUM('pending','accepted','rejected') NOT NULL DEFAULT 'accepted'");
+        if (!$has('updated_at'))  $pdo->exec("ALTER TABLE friendships ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+        // Перенос данных из старого формата user1_id/user2_id/confirmed
+        if ($has('user1_id') && $has('user2_id')) {
+            $pdo->exec(
+                "UPDATE friendships
+                 SET sender_id = COALESCE(sender_id, user1_id),
+                     receiver_id = COALESCE(receiver_id, user2_id)
+                 WHERE sender_id IS NULL OR receiver_id IS NULL"
+            );
+            if ($has('confirmed')) {
+                $pdo->exec("UPDATE friendships SET status = IF(confirmed = 1, 'accepted', 'pending')");
+            }
+        }
+
+        $pdo->exec("DELETE FROM friendships WHERE sender_id IS NULL OR receiver_id IS NULL");
+
+        // Уникальный ключ нужен для ON DUPLICATE KEY UPDATE
+        $hasUnique = $pdo->query(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'friendships'
+               AND INDEX_NAME = 'uq_friendship'"
+        )->fetchColumn();
+        if (!$hasUnique) {
+            $pdo->exec(
+                "DELETE f1 FROM friendships f1
+                 INNER JOIN friendships f2
+                 WHERE f1.id > f2.id
+                   AND f1.sender_id = f2.sender_id
+                   AND f1.receiver_id = f2.receiver_id"
+            );
+            $pdo->exec("ALTER TABLE friendships ADD UNIQUE KEY uq_friendship (sender_id, receiver_id)");
+        }
+    } catch (Throwable $e) {
+        // best-effort: не роняем запрос, если миграция не удалась
+    }
+}
+
 function enrichUserProfile(array $user): array {
     global $pdo;
     if (!$user) return $user;

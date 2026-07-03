@@ -48,6 +48,9 @@ function acceptFriendRequest(PDO $pdo, int $requestId, int $currentUserId): arra
 try {
     $currentUserId = verifyToken();
     global $pdo;
+    if (function_exists('ensureFriendshipsSchema')) {
+        ensureFriendshipsSchema();
+    }
     $method = $_SERVER['REQUEST_METHOD'];
     $type = $_GET['type'] ?? null;
 

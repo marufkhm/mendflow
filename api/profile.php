@@ -55,6 +55,10 @@ if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'PUT'], true)) {
 $me = getAuthUser($pdo);
 $myId = $me ? (int)$me['id'] : 0;
 
+if (function_exists('ensureFriendshipsSchema')) {
+    ensureFriendshipsSchema();
+}
+
 /* ──────────────────────────────────────────────────────────────
    PUT /profile.php — обновление своего профиля
    Body: { "university_id": 12|null, "organization": "..."|null }

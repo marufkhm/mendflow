@@ -9447,6 +9447,21 @@
       attachAvatarUpload();
       const bootApp = async () => {
       await refreshAccountBranding();
+      if (currentToken) {
+        try {
+          await api('/friends.php?type=count');
+        } catch (e) {
+          if (e.status === 401) {
+            currentToken = null;
+            currentUser = null;
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USER_KEY);
+            clearTokenCookie();
+            showAuth('login');
+            return;
+          }
+        }
+      }
       if (currentUser?.id) {
         try {
           const pd = await api(`/profile.php?user_id=${currentUser.id}`);
@@ -13609,10 +13624,39 @@
     bindFriendRecActions(list);
   }
 
+  function mfResolveProfileUserId(item) {
+    if (!item) return null;
+    let raw = item.db_id ?? item.user_id ?? item.from_user_id ?? null;
+    if (raw == null && item.id != null) {
+      const s = String(item.id);
+      if (s.startsWith('person-')) raw = s.slice(7);
+      else if (/^\d+$/.test(s)) raw = s;
+    }
+    if (raw == null || raw === '') return null;
+    return String(raw);
+  }
+
+  function mfIsOwnProfileUserId(userId) {
+    return !!(currentUser?.id && userId && String(currentUser.id) === String(userId));
+  }
+
+  function mfOpenOwnProfile() {
+    showView('clientProfileView');
+    applyProfileToUI(loadProfile());
+    refreshViewData('clientProfileView');
+  }
+
   /* ═══ ПРОСМОТР ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ (ПОЛНОЦЕННЫЙ) ═════════ */
   async function openUserProfile(item) {
     const page = $('publicProfileView');
     if (!page) return;
+
+    const db_id = mfResolveProfileUserId(item);
+    if (mfIsOwnProfileUserId(db_id)) {
+      mfOpenOwnProfile();
+      return;
+    }
+
     const activeView = document.querySelector('.app-view.app-view-active');
     if (activeView?.id && activeView.id !== 'publicProfileView') {
       publicProfileReturnView = activeView.id;
@@ -13626,7 +13670,7 @@
       'linear-gradient(135deg,#f59e0b,#fbbf24)',
       'linear-gradient(135deg,#ef4444,#f87171)',
     ];
-    const grad = gradients[(parseInt(item.db_id || item.id || 0)) % gradients.length];
+    const grad = gradients[(parseInt(db_id || item.id || 0, 10)) % gradients.length];
     const initial = (item.title || '?').charAt(0).toUpperCase();
 
     // Avatar
@@ -13697,8 +13741,7 @@
     showView('publicProfileView');
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    const db_id = item.db_id;
-    const isOwnPublicProfile = currentUser && db_id && String(db_id) === String(currentUser.id);
+    const isOwnPublicProfile = mfIsOwnProfileUserId(db_id);
     const badgeViewOpts = {
       earnedOnly: !isOwnPublicProfile,
       cardEl: $('upModalBadgesCard'),
@@ -13709,6 +13752,11 @@
       api(`/profile.php?user_id=${db_id}`).then(pd => {
         const u = pd.user;
         if (!u) return;
+
+        if (mfIsOwnProfileUserId(u.id)) {
+          mfOpenOwnProfile();
+          return;
+        }
 
         // Имя + верификация
         const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ');
@@ -13849,31 +13897,38 @@
       if (actions) actions.innerHTML = '<p style="font-size:13px;color:var(--ink-soft,#9ca3af)">Войдите для взаимодействия</p>';
       return;
     }
-    if (String(db_id) === String(currentUser.id)) {
+    if (mfIsOwnProfileUserId(db_id)) {
       if (actions) actions.innerHTML = `
         <button class="upf-btn-ghost" id="upEditOwnBtn" type="button" style="display:flex;align-items:center;gap:6px">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.5 1.5 0 012.1 2.1l-8 8-3 .9.9-3 8-8z"/></svg>
           Редактировать
         </button>`;
-      $('upEditOwnBtn')?.addEventListener('click', () => {
-        showView('clientProfileView');
-        const profile = loadProfile();
-        applyProfileToUI(profile);
-        if (currentUser) {
-          updateProfileActivity();
-          loadFriends();
-          loadProfilePosts();
-          loadProfileBadges(currentUser.id, { compactId: 'clientProfileBadges', panelId: 'clientProfileBadgesPanel' });
-        }
-      });
+      $('upEditOwnBtn')?.addEventListener('click', () => mfOpenOwnProfile());
+      return;
+    }
+
+    let friendsLoadError = null;
+    try {
+      const [frs, inc, out] = await Promise.all([
+        api('/friends.php?type=friends'),
+        api('/friends.php?type=incoming'),
+        api('/friends.php?type=outgoing'),
+      ]);
+      cachedFriends = frs.friends || [];
+      cachedIncoming = inc.requests || [];
+      cachedOutgoing = out.requests || [];
+    } catch (e) {
+      friendsLoadError = e;
+    }
+
+    if (friendsLoadError?.status === 401 && !cachedFriends.length && !cachedOutgoing.length) {
+      if (actions) {
+        actions.innerHTML = '<p style="font-size:13px;color:#ef4444">Сессия истекла — обновите страницу и войдите снова</p>';
+      }
       return;
     }
 
     try {
-      const [frs, inc] = await Promise.all([api('/friends.php?type=friends'), api('/friends.php?type=incoming')]);
-      cachedFriends = frs.friends || [];
-      cachedIncoming = inc.requests || [];
-
       const isFriend = cachedFriends.some(f => String(f.id) === String(db_id));
       const networkCard = document.querySelector(`.add-friend-btn[data-dbid="${db_id}"]`);
       const isPending = networkCard?.dataset.fs === 'pending'
@@ -13927,7 +13982,9 @@
         });
       }
     } catch(e) {
-      if (actions) actions.innerHTML = '<p style="font-size:13px;color:#ef4444">Ошибка загрузки</p>';
+      if (actions) {
+        actions.innerHTML = `<p style="font-size:13px;color:#ef4444">${esc(e.message || 'Ошибка загрузки')}</p>`;
+      }
     }
   }
 

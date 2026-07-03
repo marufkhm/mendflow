@@ -95,6 +95,21 @@ echo ""
 # ── HTTP API ──────────────────────────────────────────────────
 echo "→ HTTP тесты ($APP_URL)"
 if command -v curl >/dev/null 2>&1; then
+  HTTP_URL="${APP_URL/https:/http:}"
+  if echo "$APP_URL" | grep -q '^https://'; then
+    if curl -sSI --max-time 10 "$APP_URL/api/ping.php" 2>/dev/null | head -1 | grep -qE '200|301|302'; then
+      ok "HTTPS отвечает ($APP_URL)"
+    else
+      warn "HTTPS недоступен — браузер покажет «Небезопасно» при http://"
+      warn "  cd /var/www/html/mendflow && sudo bash deploy/setup-ssl.sh"
+    fi
+    REDIR=$(curl -sSI --max-time 10 "$HTTP_URL/api/ping.php" 2>/dev/null | grep -i '^location:' | head -1 || true)
+    if echo "$REDIR" | grep -qi 'https://'; then
+      ok "HTTP → HTTPS редирект настроен"
+    else
+      warn "HTTP не перенаправляет на HTTPS — после certbot должно быть Location: https://..."
+    fi
+  fi
   PING=$(curl -sS "${APP_URL}/api/ping.php" 2>/dev/null || echo '{}')
   echo "$PING" | grep -q '"ok"' \
     && ok "ping.php OK" \
