@@ -1,0 +1,44 @@
+---
+description: Проверка готовности Mendflow к деплою на production (nginx + PHP-FPM)
+alwaysApply: true
+---
+
+# Mendflow — деплой на сервер
+
+Production: **DigitalOcean** `/var/www/html/mendflow`, домен **https://mendflow.us**, стек **nginx + PHP 8.5-FPM + MariaDB**. Apache `.htaccess` nginx **не читает** — лимиты загрузки только через `deploy/nginx-upload-limits.conf`.
+
+## Перед каждым деплоем (обязательно)
+
+1. Запусти `./check-server-ready.sh` локально — должен быть **OK**
+2. Упакуй: `./pack-deploy.sh` (или `./pack-auth.sh` только для auth)
+3. На сервере после распаковки: `bash server-check.sh`
+
+## Критичные файлы auth
+
+- `api/register.php`, `register-company.php`, `register-university.php` — `requires_verification: true`, без token
+- `api/login.php` — блок 403 без `email_verified_at`
+- `api/verify-email.php`, `resend-verification.php`, `auth_email.php`, `mail.php`
+- `api/auth.php` — middleware для `presence.php`, `typing.php`, `sse.php`
+- `js/api-base.js` — `installRegisterVerificationPatch`
+- `index.html` — `needsVerify` в обработчике регистрации
+
+## Не заливать поверх production
+
+- **`.env`** — секреты на сервере свои; бэкапить перед деплоем
+- **`uploads/*`** — пользовательские файлы
+- **`.git/`**
+
+## Типичные ошибки production
+
+| Симптом | Причина | Fix |
+|---------|---------|-----|
+| Регистрация сразу в ленту | Старый `register.php` / `index.html` | `./pack-deploy.sh` + `server-check.sh` |
+| 413 при публикации | nginx `client_max_body_size` 1M | `deploy/fix-413-upload.sh` |
+| Письмо не приходит | `.env` без `RESEND_API_KEY` | Resend + verified domain |
+| Realtime 500 | нет `api/auth.php` | включён в репозиторий, залить `api/` |
+
+## После изменений auth/upload
+
+Обнови cache-bust в `index.html` для `api-base.js` (`?v=YYYYMMDD-...`).
+
+При ответах пользователю о деплое — напоминай команды проверки, не только «залейте файлы».

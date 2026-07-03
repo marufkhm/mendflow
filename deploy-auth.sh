@@ -1,5 +1,7 @@
 #!/bin/bash
-# Деплой email-verification + auth на production
+# Деплой email-verification + auth на production (запускать на MAC, не на сервере).
+# Если вы уже на сервере: на Mac выполните ./pack-auth.sh && scp auth-deploy.tgz root@SERVER:/tmp/
+# затем на сервере: cd /var/www/html/mendflow && tar xzf /tmp/auth-deploy.tgz && bash server-update-auth.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,6 +24,7 @@ scp \
   api/mail.php \
   api/config.php \
   api/db.php \
+  api/auth.php \
   "${HOST}:${REMOTE}/api/"
 
 scp js/api-base.js "${HOST}:${REMOTE}/js/"

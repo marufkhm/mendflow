@@ -1,11 +1,11 @@
 # Библиотеки — только через require, не напрямую из браузера
 <IfModule mod_authz_core.c>
-  <FilesMatch "(_lib\.php|config\.php|push_helper\.php|feed_ranking\.php|auth_email\.php|mail\.php)$">
+  <FilesMatch "(_lib\.php|config\.php|push_helper\.php|feed_ranking\.php|auth_email\.php|mail\.php|auth\.php)$">
     Require all denied
   </FilesMatch>
 </IfModule>
 <IfModule !mod_authz_core.c>
-  <FilesMatch "(_lib\.php|config\.php|push_helper\.php|feed_ranking\.php|auth_email\.php|mail\.php)$">
+  <FilesMatch "(_lib\.php|config\.php|push_helper\.php|feed_ranking\.php|auth_email\.php|mail\.php|auth\.php)$">
     Order allow,deny
     Deny from all
   </FilesMatch>
