@@ -1,0 +1,11 @@
+{
+  "name": "PWE Student Network",
+  "short_name": "PWE",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fffdfa",
+  "theme_color": "#003153",
+  "description": "Student social network with feed, communities, internships, inbox, and private projects.",
+  "icons": []
+}

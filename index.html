@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#003153">
+  <title>PWE Student Network</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <section class="auth-screen auth-screen-active" id="registerScreen">
+      <div class="auth-layout auth-layout-register">
+        <div class="auth-intro panel">
+          <p class="eyebrow">Students first</p>
+          <h1>Сначала создай аккаунт студента, потом войди в PWE.</h1>
+          <p class="hero-text">
+            Регистрация открывает доступ к закрытому student workspace. После этого ты сможешь
+            входить по email и продолжать работу в своем профиле.
+          </p>
+
+          <div class="auth-points">
+            <article>
+              <strong>1</strong>
+              <span>Заполни имя, фамилию, email и пароль</span>
+            </article>
+            <article>
+              <strong>2</strong>
+              <span>Запомни email: он понадобится для входа</span>
+            </article>
+            <article>
+              <strong>3</strong>
+              <span>После регистрации откроется отдельная страница входа</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="auth-stack">
+          <article class="panel auth-card auth-card-active" id="registerCard">
+            <div class="section-title">
+              <h2>Регистрация</h2>
+            </div>
+            <p class="auth-copy">Новый пользователь сначала создает аккаунт. Без этого перейти к платформе нельзя.</p>
+            <form class="auth-form" id="registerForm">
+              <label class="auth-field">
+                <span>Имя</span>
+                <input class="auth-input" type="text" name="firstName" placeholder="Например, Maruf" required>
+              </label>
+              <label class="auth-field">
+                <span>Фамилия</span>
+                <input class="auth-input" type="text" name="lastName" placeholder="Например, Khodzhinazarov" required>
+              </label>
+              <label class="auth-field">
+                <span>Email</span>
+                <input class="auth-input" type="email" name="email" placeholder="student@university.kz" required>
+              </label>
+              <label class="auth-field">
+                <span>Пароль</span>
+                <input class="auth-input" type="password" name="password" placeholder="Минимум 6 символов" minlength="6" required>
+              </label>
+              <button class="primary-button wide" type="submit">Зарегистрироваться</button>
+            </form>
+            <button class="ghost-button wide auth-switch-button" id="goToLoginButton" type="button">Уже зарегистрирован? Войти</button>
+            <p class="auth-note">После регистрации откроется отдельная страница входа.</p>
+          </article>
+
+          <div class="auth-message" id="registerMessage" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="auth-screen" id="loginScreen">
+      <div class="auth-layout auth-layout-login">
+        <div class="auth-intro panel">
+          <p class="eyebrow">Welcome back</p>
+          <h1>Аккаунт создан. Теперь войди и открой свой студенческий workspace.</h1>
+          <p class="hero-text">
+            Это отдельная страница входа. Она доступна после регистрации или при повторном посещении,
+            если аккаунт уже сохранен на устройстве.
+          </p>
+        </div>
+
+        <div class="auth-stack">
+          <article class="panel auth-card auth-card-active" id="loginCard">
+            <div class="section-title">
+              <h2>Вход</h2>
+            </div>
+            <p class="auth-copy">Используй email и пароль, которые создал на шаге регистрации.</p>
+            <div class="auth-instructions">
+              <p><strong>Как войти:</strong></p>
+              <ul>
+                <li>введи свой email</li>
+                <li>введи пароль из регистрации</li>
+                <li>после успешного входа откроется твой workspace</li>
+              </ul>
+            </div>
+            <form class="auth-form" id="loginForm">
+              <label class="auth-field">
+                <span>Email</span>
+                <input class="auth-input" type="email" name="identifier" placeholder="student@university.kz" required>
+              </label>
+              <label class="auth-field">
+                <span>Пароль</span>
+                <input class="auth-input" type="password" name="password" placeholder="Твой пароль" required>
+              </label>
+              <button class="primary-button wide" type="submit">Войти в PWE</button>
+            </form>
+            <button class="ghost-button wide auth-switch-button" id="backToRegister" type="button">Назад к регистрации</button>
+          </article>
+
+          <div class="auth-message" id="loginMessage" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="app-shell is-hidden" id="appShell">
+      <header class="topbar app-topbar">
+        <a class="brand" href="#">
+          <span class="brand-mark">P</span>
+          <div>
+            <strong>PWE</strong>
+            <span>private student workspace</span>
+          </div>
+        </a>
+
+        <div class="topbar-status">
+          <div class="online-counter">
+            <span class="status-dot"></span>
+            <strong id="onlineCount">1,284</strong>
+            <span>зарегистрировано студентов</span>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="user-pill user-pill-button" id="userPill" type="button">
+            <span class="avatar topbar-avatar" id="topbarAvatar">ST</span>
+            <span id="topbarUserName">Студент</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="app-layout">
+        <aside class="workspace-sidebar">
+          <article class="panel app-menu">
+            <div class="section-title">
+              <h3>Разделы PWE</h3>
+            </div>
+            <button class="menu-item is-active" type="button" data-view-target="workspaceView">Лента студентов</button>
+            <button class="menu-item" type="button" data-view-target="communitiesView">Сообщества</button>
+            <button class="menu-item is-hidden" type="button" data-view-target="internshipsView">Стажировки</button>
+            <button class="menu-item is-hidden" type="button" data-view-target="projectsView">Мои проекты</button>
+            <button class="menu-item" type="button" data-view-target="connectView">Сеть</button>
+            <button class="menu-item" id="openChatsMenuButton" type="button">Чаты</button>
+          </article>
+
+          <article class="panel tasks-panel sidebar-tasks-panel">
+            <div class="section-title">
+              <h3>План на день</h3>
+            </div>
+            <div class="task-row">
+              <strong>10:00</strong>
+              <span>Обновить профиль и добавить организацию обучения</span>
+            </div>
+            <div class="task-row">
+              <strong>13:30</strong>
+              <span>Ответить на приглашение в Product Circle</span>
+            </div>
+            <div class="task-row">
+              <strong>18:00</strong>
+              <span>Подать заявку на internship из Career Board</span>
+            </div>
+          </article>
+
+          <article class="panel event-card sidebar-strength-card">
+            <p class="eyebrow">Profile strength</p>
+            <h3>Профиль заполнен на <span id="profileStrength">41</span>%</h3>
+            <p id="profileStrengthText">Добавь организацию, специальность, интересы и страну, чтобы профиль стал заметнее.</p>
+            <button class="primary-button wide" type="button" data-view-target="profileView">Дозаполнить профиль</button>
+          </article>
+        </aside>
+
+        <section class="app-content">
+          <main class="workspace app-view app-view-active" id="workspaceView">
+            <section class="workspace-grid workspace-grid-full">
+              <div class="feed-column">
+                <article class="composer panel">
+                  <div class="composer-top">
+                    <div class="avatar muted" id="composerAvatar">YOU</div>
+                    <button class="composer-trigger" id="goToOwnProfileButton" type="button">Опубликовать пост</button>
+                  </div>
+                </article>
+
+                <div class="feed-search-shell panel">
+                  <div class="feed-search-row">
+                    <input class="filter-input" id="workspaceSearchInput" type="text" placeholder="Поиск по постам и проектам">
+                    <button class="ghost-button feed-filter-button" id="toggleFeedFiltersButton" type="button">Фильтр</button>
+                  </div>
+                  <div class="feed-filter-popover is-hidden" id="feedFilterPopover">
+                    <div class="feed-filter-group">
+                      <span class="feed-filter-label">Тип публикации</span>
+                      <div class="tab-switch">
+                        <button class="tab-button is-active" type="button" data-main-type="all">Все</button>
+                        <button class="tab-button" type="button" data-main-type="post">Посты</button>
+                        <button class="tab-button" type="button" data-main-type="project">Проекты</button>
+                      </div>
+                    </div>
+                    <div class="feed-filter-group">
+                      <span class="feed-filter-label">Источник</span>
+                      <div class="tab-switch">
+                        <button class="tab-button is-active" type="button" data-home-mode="recommendations">Рекомендации</button>
+                        <button class="tab-button" type="button" data-home-mode="subscriptions">Подписки</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="workspacePostsList"></div>
+
+                <div id="workspaceFeed">
+                  <article class="thread-card panel workspace-static-post" data-main-type="post" data-home-mode="recommendations" data-search-text="ai hackathon studytools sabina li data science">
+                  <div class="thread-head">
+                    <div class="profile-inline">
+                      <div class="avatar coral">SL</div>
+                      <div>
+                        <strong>Сабина Ли</strong>
+                        <p>Data Science student • 26 мин назад</p>
+                      </div>
+                    </div>
+                    <span class="thread-badge">Обсуждение</span>
+                  </div>
+                  <p class="thread-text">
+                    Кто собирает мини-команду на AI x Education hackathon? У меня есть идея сервиса,
+                    который помогает студентам превращать лекции в удобные study-notes.
+                  </p>
+                  <div class="thread-tags">
+                    <span>#hackathon</span>
+                    <span>#ai</span>
+                    <span>#studytools</span>
+                  </div>
+                  <div class="thread-footer">
+                    <button type="button">Ответить</button>
+                    <button type="button">Сохранить</button>
+                    <button type="button">Вступить</button>
+                  </div>
+                  </article>
+                </div>
+
+              </div>
+
+              <aside class="right-rail">
+                <article class="panel side-list accent-panel inbox-launcher" id="openInboxButton">
+                  <div class="section-title">
+                    <h3>Inbox</h3>
+                  </div>
+                  <div id="inboxPreviewList"></div>
+                </article>
+
+                <article class="panel mentor-card">
+                  <div class="section-title">
+                    <h3>Интересно Подружиться</h3>
+                  </div>
+                  <p class="hero-text">Студенты, с которыми могут совпасть интересы, специализация и формат общения.</p>
+                  <div id="friendSuggestionsList"></div>
+                </article>
+              </aside>
+            </section>
+          </main>
+
+          <section class="panel section-view app-view" id="communitiesView">
+            <div class="section-view-top">
+              <p class="eyebrow">Комьюнити</p>
+              <h1>Сообщества</h1>
+              <p class="hero-text">Топ-3 сообщества плюс поиск по интересам, специальности и образованию.</p>
+            </div>
+
+            <div class="filter-bar">
+              <input class="filter-input" id="communityNameFilter" type="text" placeholder="Поиск сообщества по имени">
+              <select class="filter-input" id="communityInterestFilter">
+                <option value="">Интересы: все</option>
+                <option value="design">Design</option>
+                <option value="frontend">Frontend</option>
+                <option value="ai">AI</option>
+                <option value="product">Product</option>
+              </select>
+              <select class="filter-input" id="communitySpecialtyFilter">
+                <option value="">Специальность: все</option>
+                <option value="computer-science">Computer Science</option>
+                <option value="design">Design</option>
+                <option value="business">Business</option>
+              </select>
+              <select class="filter-input" id="communityEducationFilter">
+                <option value="">Образование: все</option>
+                <option value="bachelor">Bachelor</option>
+                <option value="master">Master</option>
+              </select>
+            </div>
+
+            <div class="section-card-grid" id="communityGrid">
+              <article class="panel community-card community-trigger" data-community-key="ai-study" data-interest="ai" data-specialty="computer-science" data-education="bachelor">
+                <span class="community-rank">#1</span>
+                <h3>AI Study Circle</h3>
+                <p>Разбор моделей, mini-research groups и weekly build sessions.</p>
+              </article>
+              <article class="panel community-card community-trigger" data-community-key="design-jam" data-interest="design" data-specialty="design" data-education="bachelor">
+                <span class="community-rank">#2</span>
+                <h3>Design Jam Almaty</h3>
+                <p>Кейс-спринты, crit sessions и коллаборации между дизайнерами и продуктами.</p>
+              </article>
+              <article class="panel community-card community-trigger" data-community-key="campus-founders" data-interest="product" data-specialty="business" data-education="master">
+                <span class="community-rank">#3</span>
+                <h3>Campus Founders</h3>
+                <p>Сообщество для стартап-идей, питчей и поиска co-founders в кампусе.</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel section-view app-view is-hidden" id="internshipsView">
+            <div class="section-view-top">
+              <p class="eyebrow">Career</p>
+              <h1>Стажировки</h1>
+              <p class="hero-text">Поиск стажировок по графику, образованию, специальности, компании и названию.</p>
+            </div>
+
+            <div class="filter-bar filter-grid">
+              <input class="filter-input" id="internshipQuery" type="text" placeholder="Поиск по названию или компании">
+              <select class="filter-input" id="internshipScheduleFilter">
+                <option value="">График: любой</option>
+                <option value="full-time">Full-time</option>
+                <option value="part-time">Part-time</option>
+                <option value="hybrid">Hybrid</option>
+              </select>
+              <select class="filter-input" id="internshipEducationFilter">
+                <option value="">Образование: любое</option>
+                <option value="bachelor">Bachelor</option>
+                <option value="master">Master</option>
+              </select>
+              <select class="filter-input" id="internshipSpecialtyFilter">
+                <option value="">Специальность: любая</option>
+                <option value="computer-science">Computer Science</option>
+                <option value="design">Design</option>
+                <option value="business">Business</option>
+              </select>
+            </div>
+
+            <div class="section-card-grid" id="internshipGrid">
+              <article class="thread-card panel internship-card" data-title="Frontend Intern" data-company="Edtech Lab" data-schedule="part-time" data-education="bachelor" data-specialty="computer-science">
+                <div class="thread-head">
+                  <div class="profile-inline">
+                    <div class="avatar sand">FE</div>
+                    <div>
+                      <strong>Frontend Intern</strong>
+                      <p>Edtech Lab • part-time</p>
+                    </div>
+                  </div>
+                  <span class="thread-badge warm">Open</span>
+                </div>
+                <p class="thread-text">React, UI-kit, адаптивная верстка, сильный focus на продуктовые интерфейсы.</p>
+              </article>
+
+              <article class="thread-card panel internship-card" data-title="UX Research Intern" data-company="Fintech Hub" data-schedule="hybrid" data-education="bachelor" data-specialty="design">
+                <div class="thread-head">
+                  <div class="profile-inline">
+                    <div class="avatar coral">UX</div>
+                    <div>
+                      <strong>UX Research Intern</strong>
+                      <p>Fintech Hub • hybrid</p>
+                    </div>
+                  </div>
+                  <span class="thread-badge">New</span>
+                </div>
+                <p class="thread-text">Интервью, синтез инсайтов и поддержка продуктовых discovery-спринтов.</p>
+              </article>
+
+              <article class="thread-card panel internship-card" data-title="Business Analyst Intern" data-company="Growth Studio" data-schedule="full-time" data-education="master" data-specialty="business">
+                <div class="thread-head">
+                  <div class="profile-inline">
+                    <div class="avatar dark">BA</div>
+                    <div>
+                      <strong>Business Analyst Intern</strong>
+                      <p>Growth Studio • full-time</p>
+                    </div>
+                  </div>
+                  <span class="thread-badge soft">Fast track</span>
+                </div>
+                <p class="thread-text">Аналитика, рынки, гипотезы и support для go-to-market команды.</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel section-view app-view" id="connectView">
+            <div class="section-view-top">
+              <p class="eyebrow">Network</p>
+              <h1>Сеть</h1>
+              <p class="hero-text">Найдите единомышленников, наставников и будущих работодателей.</p>
+            </div>
+
+            <div class="network-chip-row">
+              <button class="network-chip is-active" type="button" data-network-filter="all">Все</button>
+              <button class="network-chip" type="button" data-network-filter="students">Студенты</button>
+              <button class="network-chip" type="button" data-network-filter="schools">Школы</button>
+              <button class="network-chip" type="button" data-network-filter="universities">Университеты</button>
+              <button class="network-chip" type="button" data-network-filter="companies">Компании</button>
+            </div>
+
+            <div class="filter-bar">
+              <input class="filter-input" id="connectSearchInput" type="text" placeholder="Имя, фамилия, организация или компания">
+            </div>
+
+            <div class="network-layout">
+              <section class="network-main-grid">
+                <div class="network-feature-card panel" id="networkFeaturedCard"></div>
+                <div class="network-side-grid" id="networkSideGrid"></div>
+              </section>
+
+              <section class="network-cta-banner panel">
+                <div class="network-cta-copy">
+                  <span>Новые возможности</span>
+                  <h2>Станьте частью сообщества из 5000+ студентов</h2>
+                  <p>Ваш профиль — это ваша цифровая витрина. Заполните данные об образовании и проектах, чтобы стать заметнее.</p>
+                  <button class="primary-button" type="button" data-view-target="profileView">Обновить профиль</button>
+                </div>
+                <div class="network-cta-visual">
+                  <div class="network-cta-figure"></div>
+                </div>
+              </section>
+
+              <section class="network-bottom-strip" id="connectResults"></section>
+            </div>
+          </section>
+
+          <section class="panel section-view app-view is-hidden" id="projectsView">
+            <div class="section-view-top">
+              <p class="eyebrow">Private build space</p>
+              <h1>Мои проекты</h1>
+              <p class="hero-text">Приватное пространство студента: задачи, канбан, трекинг, музыка и мини-рабочая среда для креатива.</p>
+            </div>
+
+            <div class="projects-layout">
+              <article class="panel project-subpanel">
+                <div class="section-title">
+                  <h3>To-do лист</h3>
+                </div>
+                <div class="todo-item"><input type="checkbox" checked> <span>Собрать scope проекта</span></div>
+                <div class="todo-item"><input type="checkbox"> <span>Сделать research по аудитории</span></div>
+                <div class="todo-item"><input type="checkbox"> <span>Подготовить demo к субботе</span></div>
+              </article>
+
+              <article class="panel project-subpanel">
+                <div class="section-title">
+                  <h3>Канбан</h3>
+                </div>
+                <div class="kanban-board">
+                  <div class="kanban-column">
+                    <strong>Backlog</strong>
+                    <span class="kanban-card">Собрать референсы</span>
+                    <span class="kanban-card">Проверить гипотезы</span>
+                  </div>
+                  <div class="kanban-column">
+                    <strong>In Progress</strong>
+                    <span class="kanban-card">UI прототип onboarding</span>
+                  </div>
+                  <div class="kanban-column">
+                    <strong>Done</strong>
+                    <span class="kanban-card">Собран user flow</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="panel project-subpanel">
+                <div class="section-title">
+                  <h3>Трекинг задач</h3>
+                </div>
+                <div class="chart-line">
+                  <span>Research</span>
+                  <div class="bar"><i style="width: 78%"></i></div>
+                </div>
+                <div class="chart-line">
+                  <span>Design</span>
+                  <div class="bar"><i style="width: 56%"></i></div>
+                </div>
+                <div class="chart-line">
+                  <span>Development</span>
+                  <div class="bar"><i style="width: 34%"></i></div>
+                </div>
+              </article>
+
+              <article class="panel project-subpanel">
+                <div class="section-title">
+                  <h3>Музыка</h3>
+                </div>
+                <div class="music-player">
+                  <strong>Focus Mode Playlist</strong>
+                  <p>Lofi x ambient x deep work</p>
+                  <div class="music-controls">
+                    <button type="button">Prev</button>
+                    <button type="button">Play</button>
+                    <button type="button">Next</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="panel project-subpanel project-code">
+                <div class="section-title">
+                  <h3>Study Editor</h3>
+                </div>
+                <pre class="code-editor"><code>function buildStudentProject() {
+  const vision = "Make something useful";
+  const stack = ["research", "design", "code"];
+  return { vision, stack };
+}</code></pre>
+              </article>
+            </div>
+          </section>
+
+          <section class="profile-view app-view" id="clientProfileView">
+            <article class="panel profile-panel">
+              <div class="profile-panel-top">
+                <button class="ghost-button" id="clientProfileBackButton" type="button">Назад на главную</button>
+                <p class="eyebrow">Профиль студента</p>
+              </div>
+
+              <div class="profile-panel-main">
+                <div class="profile-panel-card">
+                  <div class="profile-photo-stack">
+                    <div class="avatar large" id="clientProfileAvatar">MK</div>
+                  </div>
+                  <div>
+                    <h1 id="clientProfileName">Maruf Khodzhinazarov</h1>
+                    <p id="clientProfileEmail">student@university.kz</p>
+                  </div>
+                </div>
+
+                <div class="profile-summary-grid">
+                  <article>
+                    <strong>Организация</strong>
+                    <span id="clientProfileOrganizationCard">Пока не указано</span>
+                  </article>
+                  <article>
+                    <strong>Специальность</strong>
+                    <span id="clientProfileSpecialtyCard">Пока не указано</span>
+                  </article>
+                  <article>
+                    <strong>Страна</strong>
+                    <span id="clientProfileCountryCard">Пока не указано</span>
+                  </article>
+                  <article>
+                    <strong>Интересы</strong>
+                    <span id="clientProfileInterestsCard">Пока не указано</span>
+                  </article>
+                  <article>
+                    <strong>Email</strong>
+                    <span id="clientProfileEmailCard">student@university.kz</span>
+                  </article>
+                  <article>
+                    <strong>Статус</strong>
+                    <span>Аккаунт активен</span>
+                  </article>
+                </div>
+
+                <div class="profile-actions-panel">
+                  <button class="primary-button" id="editProfileButton" type="button">Редактировать</button>
+                </div>
+
+                <div class="profile-social">
+                  <div class="profile-tab-row">
+                    <button class="profile-tab is-active" type="button" data-profile-tab="posts">Посты</button>
+                    <button class="profile-tab" type="button" data-profile-tab="subscriptions">Подписки</button>
+                    <button class="profile-tab" type="button" data-profile-tab="friends">Друзья</button>
+                    <button class="profile-tab" type="button" data-profile-tab="projects">Проекты</button>
+                    <button class="profile-tab" type="button" data-profile-tab="reposts">Репосты</button>
+                  </div>
+
+                  <section class="profile-tab-panel profile-tab-panel-active" data-profile-panel="posts">
+                    <article class="panel profile-post-composer">
+                      <div class="section-title">
+                        <h3>Лента студента</h3>
+                      </div>
+                      <p class="hero-text">Новый пост публикуется только отсюда и после этого попадает в общую ленту.</p>
+                      <div class="profile-post-actions">
+                        <button class="primary-button" id="openProfilePostButton" type="button">Новый пост</button>
+                      </div>
+                    </article>
+
+                    <div class="profile-posts-list" id="profilePostsList"></div>
+                  </section>
+
+                  <section class="profile-tab-panel" data-profile-panel="subscriptions">
+                    <div class="profile-mini-grid">
+                      <article class="panel social-mini-card">
+                        <strong>AI Study Circle</strong>
+                        <p>Еженедельные разборы AI-проектов и research sessions.</p>
+                      </article>
+                      <article class="panel social-mini-card">
+                        <strong>Frontend Guild</strong>
+                        <p>Подписка на разборы интерфейсов, peer review и showcase работ.</p>
+                      </article>
+                    </div>
+                  </section>
+
+                  <section class="profile-tab-panel" data-profile-panel="friends">
+                    <div class="profile-mini-grid">
+                      <article class="panel social-mini-card">
+                        <strong>Томирис Н.</strong>
+                        <p>Backend mentor и частый собеседник по карьерным вопросам.</p>
+                      </article>
+                      <article class="panel social-mini-card">
+                        <strong>Асем С.</strong>
+                        <p>Frontend friend для совместных pet-project и crit sessions.</p>
+                      </article>
+                    </div>
+                  </section>
+
+                  <section class="profile-tab-panel" data-profile-panel="projects">
+                    <div class="profile-mini-grid">
+                      <article class="panel social-mini-card">
+                        <strong>Study Notes AI</strong>
+                        <p>Мини-сервис для конвертации лекций в структурированные учебные заметки.</p>
+                      </article>
+                      <article class="panel social-mini-card">
+                        <strong>Campus Match</strong>
+                        <p>Проект для поиска команд и студенческих коллабораций по интересам.</p>
+                      </article>
+                    </div>
+                  </section>
+
+                  <section class="profile-tab-panel" data-profile-panel="reposts">
+                    <div class="profile-mini-grid">
+                      <article class="panel social-mini-card">
+                        <strong>Репост: Pitch Practice</strong>
+                        <p>Campus Founders запускают открытую тренировку питчей в эту пятницу.</p>
+                      </article>
+                      <article class="panel social-mini-card">
+                        <strong>Репост: Frontend Internship</strong>
+                        <p>Вакансия part-time для студентов с опытом React и UI systems.</p>
+                      </article>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section class="profile-view app-view" id="profileView">
+            <article class="panel profile-panel">
+              <div class="profile-panel-top">
+                <button class="ghost-button" id="profileBackButton" type="button">Назад на главную</button>
+                <p class="eyebrow">Личный кабинет</p>
+              </div>
+
+              <div class="profile-panel-main">
+                <div class="profile-panel-card">
+                  <div class="profile-photo-stack">
+                    <div class="avatar large" id="profileAvatar">MK</div>
+                    <label class="ghost-button profile-upload-label" for="profilePhotoInput">Загрузить фото</label>
+                    <input id="profilePhotoInput" type="file" accept="image/*" hidden>
+                  </div>
+                  <div>
+                    <h1 id="profileName">Maruf Khodzhinazarov</h1>
+                    <p id="profileEmail">student@university.kz</p>
+                  </div>
+                </div>
+
+                <form class="profile-form-grid" id="profileDetailsForm">
+                  <label class="auth-field">
+                    <span>Организация обучения</span>
+                    <select class="auth-input" id="profileOrganization">
+                      <option value="">Выбери организацию</option>
+                      <option value="AITU">AITU</option>
+                      <option value="DKU">DKU</option>
+                      <option value="NU">NU</option>
+                      <option value="SDU">SDU</option>
+                    </select>
+                  </label>
+                  <label class="auth-field">
+                    <span>Специальность</span>
+                    <select class="auth-input" id="profileSpecialty">
+                      <option value="">Выбери специальность</option>
+                      <option value="computer-science">Computer Science</option>
+                      <option value="design">Design</option>
+                      <option value="business">Business</option>
+                    </select>
+                  </label>
+                  <label class="auth-field">
+                    <span>Образование</span>
+                    <select class="auth-input" id="profileEducation">
+                      <option value="">Выбери уровень</option>
+                      <option value="bachelor">Bachelor</option>
+                      <option value="master">Master</option>
+                    </select>
+                  </label>
+                  <label class="auth-field">
+                    <span>Страна</span>
+                    <select class="auth-input" id="profileCountry">
+                      <option value="">Выбери страну</option>
+                      <option value="🇰🇿|Казахстан">🇰🇿 Казахстан</option>
+                      <option value="🇺🇿|Узбекистан">🇺🇿 Узбекистан</option>
+                      <option value="🇰🇬|Кыргызстан">🇰🇬 Кыргызстан</option>
+                      <option value="🇩🇪|Германия">🇩🇪 Германия</option>
+                    </select>
+                  </label>
+                  <label class="auth-field">
+                    <span>Интерес 1</span>
+                    <select class="auth-input interest-select" id="interest1">
+                      <option value="">Выбери интерес</option>
+                      <option value="design">Design</option>
+                      <option value="frontend">Frontend</option>
+                      <option value="ai">AI</option>
+                      <option value="product">Product</option>
+                      <option value="data">Data</option>
+                    </select>
+                  </label>
+                  <label class="auth-field">
+                    <span>Интерес 2</span>
+                    <select class="auth-input interest-select" id="interest2">
+                      <option value="">Выбери интерес</option>
+                      <option value="design">Design</option>
+                      <option value="frontend">Frontend</option>
+                      <option value="ai">AI</option>
+                      <option value="product">Product</option>
+                      <option value="data">Data</option>
+                    </select>
+                  </label>
+                  <label class="auth-field">
+                    <span>Интерес 3</span>
+                    <select class="auth-input interest-select" id="interest3">
+                      <option value="">Выбери интерес</option>
+                      <option value="design">Design</option>
+                      <option value="frontend">Frontend</option>
+                      <option value="ai">AI</option>
+                      <option value="product">Product</option>
+                      <option value="data">Data</option>
+                    </select>
+                  </label>
+                  <div class="profile-form-actions">
+                    <button class="primary-button" type="submit">Сохранить профиль</button>
+                  </div>
+                  <label class="auth-field">
+                    <span>Стиль шрифта блока профиля</span>
+                    <select class="auth-input" id="profileFontTheme">
+                      <option value="manrope">Manrope</option>
+                      <option value="fraunces">Fraunces</option>
+                      <option value="mono">Monospace</option>
+                    </select>
+                  </label>
+                  <label class="auth-field">
+                    <span>Цвет акцента</span>
+                    <input class="auth-input" id="profileAccentColor" type="color" value="#e78479">
+                  </label>
+                  <label class="auth-field">
+                    <span>Цвет фона</span>
+                    <input class="auth-input" id="profileCardColor" type="color" value="#f1e4d0">
+                  </label>
+                </form>
+
+                <div class="profile-summary-grid">
+                  <article>
+                    <strong>Организация</strong>
+                    <span id="profileOrganizationCard">Пока не указано</span>
+                  </article>
+                  <article>
+                    <strong>Специальность</strong>
+                    <span id="profileSpecialtyCard">Пока не указано</span>
+                  </article>
+                  <article>
+                    <strong>Страна</strong>
+                    <span id="profileCountryCard">Пока не указано</span>
+                  </article>
+                  <article>
+                    <strong>Интересы</strong>
+                    <span id="profileInterestsCard">Пока не указано</span>
+                  </article>
+                  <article>
+                    <strong>Email</strong>
+                    <span id="profileEmailCard">student@university.kz</span>
+                  </article>
+                  <article>
+                    <strong>Статус</strong>
+                    <span>Аккаунт активен</span>
+                  </article>
+                </div>
+
+                <div class="profile-actions-panel">
+                  <button class="ghost-button logout-profile-button" id="logoutButton" type="button">Выйти из аккаунта</button>
+                </div>
+              </div>
+            </article>
+          </section>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="inbox-modal is-hidden" id="inboxModal">
+    <div class="inbox-backdrop" id="closeInboxBackdrop"></div>
+    <div class="inbox-dialog panel">
+      <div class="inbox-dialog-top">
+        <div>
+          <p class="eyebrow">Inbox</p>
+          <h2>Уведомления</h2>
+        </div>
+        <button class="ghost-button" id="closeInboxButton" type="button">Закрыть</button>
+      </div>
+
+      <div class="inbox-dialog-body">
+        <section class="notification-list" id="notificationList"></section>
+      </div>
+    </div>
+  </div>
+
+  <div class="inbox-modal is-hidden" id="chatModal">
+    <div class="inbox-backdrop" id="closeChatBackdrop"></div>
+    <div class="inbox-dialog chat-dialog panel">
+      <div class="inbox-dialog-top">
+        <div>
+          <p class="eyebrow">Chats</p>
+          <h2>Сообщения</h2>
+        </div>
+        <button class="ghost-button" id="closeChatButton" type="button">Закрыть</button>
+      </div>
+
+      <div class="chat-composer-layout chat-composer-layout-modal">
+        <aside class="chat-sidebar" id="chatContactsList"></aside>
+        <div class="chat-thread">
+          <div class="chat-thread-top">
+            <div class="profile-inline">
+              <div class="avatar sand" id="chatHeaderAvatar">TN</div>
+              <div>
+                <strong id="chatHeaderName">Томирис Н.</strong>
+                <p id="chatHeaderMeta">Backend mentor</p>
+              </div>
+            </div>
+            <button class="ghost-button student-profile-trigger" id="chatProfileButton" data-student-key="tomiris" type="button">Открыть профиль</button>
+          </div>
+          <div class="chat-messages" id="liveChatMessages">
+            <div class="message-bubble incoming">Привет! Если хочешь, я могу посмотреть твой backend roadmap.</div>
+            <div class="message-bubble outgoing">Да, было бы супер. Особенно по стеку и first internship prep.</div>
+          </div>
+          <form class="chat-input-row" id="liveChatForm">
+            <input class="filter-input" id="liveChatInput" type="text" placeholder="Напиши сообщение...">
+            <label class="ghost-button attachment-button" for="chatAttachmentInput">Файл</label>
+            <input id="chatAttachmentInput" type="file" accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx" hidden>
+            <div id="chatAttachmentPreview"></div>
+            <button class="primary-button" type="submit">Отправить</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="inbox-modal is-hidden" id="postModal">
+    <div class="inbox-backdrop" id="closePostBackdrop"></div>
+    <div class="inbox-dialog post-dialog panel">
+      <div class="inbox-dialog-top">
+        <div>
+          <p class="eyebrow">Publish</p>
+          <h2>Новая публикация</h2>
+        </div>
+        <button class="ghost-button" id="closePostButton" type="button">Закрыть</button>
+      </div>
+      <form class="profile-post-form" id="modalPostForm">
+        <textarea class="profile-post-textarea" id="modalPostInput" placeholder="Что ты хочешь опубликовать?" required></textarea>
+        <label class="ghost-button attachment-button" for="modalPostAttachmentInput">Добавить фото или видео</label>
+        <input id="modalPostAttachmentInput" type="file" accept="image/*,video/*" hidden>
+        <div id="modalPostAttachmentPreview"></div>
+        <div class="profile-post-actions">
+          <button class="primary-button" type="submit">Опубликовать</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="inbox-modal is-hidden" id="commentsModal">
+    <div class="inbox-backdrop" id="closeCommentsBackdrop"></div>
+    <div class="inbox-dialog panel">
+      <div class="inbox-dialog-top">
+        <div>
+          <p class="eyebrow">Comments</p>
+          <h2>Комментарии к посту</h2>
+        </div>
+        <button class="ghost-button" id="closeCommentsButton" type="button">Закрыть</button>
+      </div>
+      <div class="inbox-dialog-body comments-modal-body">
+        <div class="comment-list" id="commentsModalList"></div>
+        <form class="comment-form" id="commentsModalForm">
+          <input class="filter-input" id="commentsModalInput" type="text" placeholder="Оставь комментарий">
+          <button class="ghost-button" type="submit">Отправить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="inbox-modal is-hidden" id="communityModal">
+    <div class="inbox-backdrop" id="closeCommunityBackdrop"></div>
+    <div class="inbox-dialog panel">
+      <div class="inbox-dialog-top">
+        <div>
+          <p class="eyebrow">Community</p>
+          <h2 id="communityModalTitle">AI Study Circle</h2>
+        </div>
+        <button class="ghost-button" id="closeCommunityButton" type="button">Закрыть</button>
+      </div>
+      <div class="community-modal-body">
+        <p id="communityModalDescription">Разбор моделей, mini-research groups и weekly build sessions.</p>
+        <div class="thread-tags" id="communityModalTags"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./script.js"></script>
+</body>
+</html>
