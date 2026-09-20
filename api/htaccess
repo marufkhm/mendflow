@@ -1,0 +1,12 @@
+RewriteEngine On
+
+# Проброс Authorization заголовка (InfinityFree fix)
+RewriteCond %{HTTP:Authorization} .
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+# Включить PHP
+AddHandler application/x-httpd-php .php
+
+# Запретить листинг директории
+Options -Indexes

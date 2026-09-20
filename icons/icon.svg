@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mendflow">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <path fill="#fff" d="M148 156c0-22 18-40 40-40h136c22 0 40 18 40 40v200c0 22-18 40-40 40H188c-22 0-40-18-40-40V156zm56 40v120h56l72-120h-56l-28 48-28-48h-16zm88 0v120h40V196h-40z"/>
+</svg>

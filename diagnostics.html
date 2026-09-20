@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mendflow Diagnostics</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:20px;background:#f5f5f5}
+    .container{max-width:860px;margin:0 auto;background:#fff;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+    .section{margin:20px 0;padding:15px;border:1px solid #ddd;border-radius:6px}
+    .success{border-color:#4caf50;background:#f8fff8}.error{border-color:#f44336;background:#fff8f8}.info{border-color:#2196f3;background:#f8faff}
+    button{background:#7c3aed;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;margin:5px 5px 5px 0}
+    input,textarea{width:100%;padding:8px;margin:5px 0;border:1px solid #ddd;border-radius:4px;box-sizing:border-box}
+    .result{margin-top:10px;padding:10px;background:#f9f9f9;border-radius:4px;white-space:pre-wrap;font-family:monospace}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Mendflow Diagnostics</h1>
+    <p>Проверка API и базы данных на хостинге.</p>
+    <div class="section info"><h3>Информация о сайте</h3><div id="siteInfo"></div></div>
+    <div class="section"><h3>Проверка API и БД</h3><button onclick="checkHealth()">Проверить</button><div id="healthResult" class="result"></div></div>
+    <div class="section"><h3>Тест регистрации</h3><input id="testFirstName" value="Test"><input id="testLastName" value="User"><input id="testEmail" type="email" value="test@example.com"><input id="testPassword" type="password" value="123456"><button onclick="testRegistration()">Регистрация</button><div id="regResult" class="result"></div></div>
+    <div class="section"><h3>Тест входа</h3><input id="loginEmail" type="email" value="test@example.com"><input id="loginPassword" type="password" value="123456"><button onclick="testLogin()">Вход</button><div id="loginResult" class="result"></div></div>
+    <div class="section"><h3>Тест создания поста</h3><textarea id="postContent" rows="3">Тестовый пост от диагностики</textarea><button onclick="testCreatePost()">Создать пост</button><div id="postResult" class="result"></div></div>
+    <div class="section"><button onclick="localStorage.clear()">Очистить localStorage</button></div>
+  </div>
+  <script src="./js/api-base.js?v=20260620c"></script>
+  <script>
+    const currentPath = window.__MF_DIR__ || (window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, "/"));
+    const API_BASE = window.API_BASE || (currentPath.replace(/\/$/, "") + "/api");
+    let testToken = null;
+    document.getElementById("siteInfo").innerHTML = `<strong>URL:</strong> ${window.location.href}<br><strong>API Base:</strong> ${API_BASE}<br><strong>Timestamp:</strong> ${new Date().toISOString()}`;
+    async function apiRequest(endpoint, options={}) {
+      const config = { headers: { ...(options.body ? {"Content-Type":"application/json"} : {}), ...(options.headers||{}) }, ...options };
+      if (testToken && !options.skipAuth) config.headers.Authorization = `Bearer ${testToken}`;
+      try {
+        const response = await fetch(`${API_BASE}${endpoint}`, config);
+        const text = await response.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+        return { ok: response.ok, status: response.status, data };
+      } catch (error) {
+        return { ok:false, status:0, data:{ error:error.message } };
+      }
+    }
+    async function checkHealth(){const r=await apiRequest("/db.php",{skipAuth:true});const el=document.getElementById("healthResult");el.textContent=JSON.stringify(r.data,null,2);el.className=`result ${r.ok?"success":"error"}`}
+    async function testRegistration(){const r=await apiRequest("/register.php",{method:"POST",body:JSON.stringify({firstName:testFirstName.value,lastName:testLastName.value,email:testEmail.value,password:testPassword.value}),skipAuth:true});if(r.ok)testToken=r.data.token||null;regResult.textContent=JSON.stringify(r.data,null,2);regResult.className=`result ${r.ok?"success":"error"}`}
+    async function testLogin(){const r=await apiRequest("/login.php",{method:"POST",body:JSON.stringify({email:loginEmail.value,password:loginPassword.value}),skipAuth:true});if(r.ok)testToken=r.data.token||null;loginResult.textContent=JSON.stringify(r.data,null,2);loginResult.className=`result ${r.ok?"success":"error"}`}
+    async function testCreatePost(){const r=await apiRequest("/posts.php",{method:"POST",body:JSON.stringify({content:postContent.value})});postResult.textContent=JSON.stringify(r.data,null,2);postResult.className=`result ${r.ok?"success":"error"}`}
+  </script>
+</body>
+</html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
