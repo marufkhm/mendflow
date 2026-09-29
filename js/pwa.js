@@ -60,7 +60,10 @@
     $('mobileMoreSheet')?.classList.remove('is-hidden');
     $('mobileMoreBackdrop')?.setAttribute('aria-hidden', 'false');
     const btn = $('mobileNavMoreBtn');
-    if (btn) btn.setAttribute('aria-expanded', 'true');
+    if (btn) {
+      btn.setAttribute('aria-expanded', 'true');
+      btn.classList.add('is-active');
+    }
   }
 
   function toggleMoreMenu(e) {
