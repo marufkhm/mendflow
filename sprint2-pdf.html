@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Спринт 2 — Mendflow. Формализация требований</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm; }
+  @page landscape { size: A4 landscape; margin: 12mm; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    color: #1a1523;
+    background: #fff;
+    font: 11pt/1.45 "Segoe UI", "PT Sans", "Helvetica Neue", Arial, sans-serif;
+  }
+  h1 { font-size: 22pt; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 14.5pt;
+    margin: 0 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #7c3aed;
+    color: #3b0764;
+    page-break-after: avoid;
+  }
+  h3 { font-size: 12pt; margin: 16px 0 8px; color: #5b21b6; page-break-after: avoid; }
+  h4 { font-size: 11pt; margin: 12px 0 6px; color: #4c1d95; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 0 0 10px; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  .cover {
+    min-height: 250mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+  }
+  .kicker {
+    color: #7c3aed;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 9.5pt;
+    margin-bottom: 18px;
+  }
+  .sub { color: #5b5670; font-size: 12.5pt; max-width: 150mm; }
+  .meta { margin-top: 36px; color: #4b4458; font-size: 10.5pt; }
+  .meta div { margin: 4px 0; }
+  .page { page-break-before: always; }
+  .keep { page-break-inside: avoid; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin: 0 0 12px;
+  }
+  th, td {
+    border: 1px solid #d4c8ea;
+    padding: 5px 7px;
+    vertical-align: top;
+    text-align: left;
+  }
+  th { background: #f3eefc; color: #3b0764; font-weight: 650; }
+  tr:nth-child(even) td { background: #faf8fd; }
+  .note {
+    background: #f6f1ff;
+    border-left: 3px solid #7c3aed;
+    padding: 8px 10px;
+    margin: 10px 0 14px;
+    font-size: 10pt;
+  }
+  .cols { display: flex; gap: 14px; }
+  .cols > div { flex: 1; }
+  .arch {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 8.4pt;
+    line-height: 1.35;
+    background: #f7f5fb;
+    border: 1px solid #ddd3f0;
+    padding: 10px 12px;
+    white-space: pre;
+    margin: 0 0 12px;
+  }
+  .caption { font-size: 9pt; color: #625b70; margin: -6px 0 14px; }
+  .diagram-wrap {
+    border: 1px solid #e4dcf3;
+    padding: 6px;
+    margin: 0 0 10px;
+    page-break-inside: avoid;
+  }
+  .diagram-wrap.wide { page: landscape; page-break-before: always; }
+  svg.erd { width: 100%; height: auto; display: block; }
+  .legend { font-size: 9pt; color: #4b4458; margin-bottom: 8px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; margin: 0 4px 0 10px; vertical-align: -1px; border: 1px solid #aaa; }
+  .footer-note { font-size: 8.5pt; color: #7a7388; margin-top: 8px; }
+  .roadmap-task { font-size: 8.5pt; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="kicker">Спринт 2 · системный анализ</div>
+  <h1>Mendflow</h1>
+  <p class="sub">Формализация требований и планирование разработки: назначение продукта, данные, концептуальная ER-модель, предварительная архитектура, MVP и roadmap до релиза.</p>
+  <div class="meta">
+    <div><strong>Продукт:</strong> социальная и карьерная платформа для студентов, университетов и компаний</div>
+    <div><strong>Платформа:</strong> https://mendflow.us</div>
+    <div><strong>Дата:</strong> 24 сентября 2026</div>
+    <div><strong>Артефакты:</strong> спецификация · ER · архитектура · метрики спринта 6 · план спринтов 2–7</div>
+  </div>
+</section>
+
+<section>
+  <h2>1. Формализация требований к продукту</h2>
+  <h3>1.1. Назначение</h3>
+  <p>Mendflow — программный продукт (не исследовательская модель): веб-платформа, которая связывает студентов, университеты и компании вокруг <strong>проектов, обучения и стажировок</strong>. Студент собирает команду и публикует прогресс; университет показывает курсы, клубы и обмен; компания размещает вакансии там же, где студенты уже работают.</p>
+  <p>В системе есть интерфейс, API, хранение данных, уведомления и вычислительный модуль ранжирования ленты.</p>
+
+  <h3>1.2. Основные пользователи</h3>
+  <table>
+    <thead><tr><th>Роль</th><th>Кто</th><th>Зачем заходит</th></tr></thead>
+    <tbody>
+      <tr><td>Студент</td><td>основной пользователь</td><td>профиль, лента, друзья, проекты, события, курсы, отклики</td></tr>
+      <tr><td>Компания</td><td>работодатель</td><td>страница компании, вакансии, отклики, публикации</td></tr>
+      <tr><td>Университет</td><td>вуз</td><td>страница вуза, курсы, клубы, обмен, подписчики</td></tr>
+      <tr><td>Модератор / admin</td><td>команда платформы</td><td>жалобы, блокировки, журнал действий</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.3. Ключевой сценарий</h3>
+  <ol>
+    <li>Студент регистрируется по email, подтверждает почту, входит.</li>
+    <li>Указывает интересы и город, проходит онбординг.</li>
+    <li>Создаёт или находит проект, вступает в команду.</li>
+    <li>Публикует пост в общую ленту и обновление проекта.</li>
+    <li>Получает рекомендации; откликается на вакансию.</li>
+    <li>Компания видит отклик; студент получает уведомление.</li>
+  </ol>
+  <div class="note"><strong>Критерий успеха:</strong> путь «регистрация → проект → публикация → отклик» проходит без сторонних инструментов; после повторного входа данные на месте.</div>
+
+  <h3>1.4. Функциональные требования (проверяемые)</h3>
+  <h4>Аутентификация и профиль</h4>
+  <ul>
+    <li>Пользователь может зарегистрироваться как студент, компания или университет.</li>
+    <li>Система не выдаёт сессию до подтверждения email.</li>
+    <li>Пользователь входит по email и паролю и получает токен сессии.</li>
+    <li>Пользователь загружает аватар и обложку; система сохраняет файлы и ссылки.</li>
+    <li>Город, специальность и интересы сохраняются и используются в рекомендациях.</li>
+  </ul>
+  <h4>Лента и социальный граф</h4>
+  <ul>
+    <li>Создание текстового поста с фото или видео.</li>
+    <li>Лайк, комментарий, репост.</li>
+    <li>Заявка в друзья: отправка, принятие, отклонение.</li>
+    <li>Личные сообщения между принятыми друзьями.</li>
+    <li>Жалоба на контент или пользователя; модератор видит статус.</li>
+  </ul>
+  <h4>Проекты</h4>
+  <ul>
+    <li>Создание проекта (название, описание, категория, стадия).</li>
+    <li>Роли доступа: owner / admin / member / viewer.</li>
+    <li>Задачи на канбане: статус, исполнитель.</li>
+    <li>Обновления проекта; публичная ссылка /p/{slug} с превью.</li>
+  </ul>
+  <h4>Институты, события, обучение</h4>
+  <ul>
+    <li>Вуз ведёт курсы, клубы, обмен; пользователь подписывается.</li>
+    <li>Компания публикует вакансию; студент отправляет отклик со статусом.</li>
+    <li>Мероприятие онлайн/офлайн и отметка участия.</li>
+    <li>Курс платформы: запись и прогресс уроков.</li>
+    <li>Уведомления; обновления ленты и проекта по Server-Sent Events.</li>
+  </ul>
+
+  <h3>1.5. Нефункциональные требования</h3>
+  <ul>
+    <li>SPA в современном браузере.</li>
+    <li>JSON API; вход без верификации почты отклоняется.</li>
+    <li>Лимит загрузки медиа на веб-сервере.</li>
+    <li>Секреты БД и почты только в окружении сервера.</li>
+    <li>Публичный проект индексируется (sitemap, мета-теги).</li>
+  </ul>
+
+  <h3>1.6. Границы</h3>
+  <table>
+    <thead><tr><th>В семестре (MVP+)</th><th>Вне скоупа</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Auth трёх ролей, лента, друзья, сообщения, проекты (команда, канбан, публичная ссылка), вакансии, страницы вуза/компании, события, уведомления, умная лента, базовая модерация</td>
+        <td>Нативные приложения, звонки и групповые чаты, платежи, микросервисы и очередь, полноценный PWA-кэш API, автоскрининг резюме, поиск по внешним job-бордам</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="page">
+  <h2>2. Данные системы</h2>
+  <h3>2.1. Вход</h3>
+  <table>
+    <thead><tr><th>Источник</th><th>Данные</th></tr></thead>
+    <tbody>
+      <tr><td>Регистрация / вход</td><td>имя, email, пароль, роль, код подтверждения</td></tr>
+      <tr><td>Профиль</td><td>город, био, интересы, аватар, обложка</td></tr>
+      <tr><td>Лента</td><td>текст поста, медиафайлы</td></tr>
+      <tr><td>Проекты</td><td>карточка проекта, задачи, документы, часы</td></tr>
+      <tr><td>Карьера</td><td>поля вакансии, текст отклика</td></tr>
+      <tr><td>Клиент ленты</td><td>показ, клик, время чтения, время видео</td></tr>
+      <tr><td>Модерация</td><td>тип цели, причина, комментарий</td></tr>
+    </tbody>
+  </table>
+  <h3>2.2. Результаты модулей</h3>
+  <table>
+    <thead><tr><th>Модуль</th><th>Выход</th></tr></thead>
+    <tbody>
+      <tr><td>Auth</td><td>хеш пароля, токен, факт верификации</td></tr>
+      <tr><td>Ранжирование ленты</td><td>порядок постов, tier (test / expanded / full), affinity</td></tr>
+      <tr><td>Рекомендации</td><td>люди и проекты в онбординге</td></tr>
+      <tr><td>Проекты</td><td>slug, прогресс вех, статусы задач</td></tr>
+      <tr><td>Уведомления</td><td>записи колокольчика и события SSE</td></tr>
+      <tr><td>Курсы</td><td>процент прохождения, средняя оценка</td></tr>
+    </tbody>
+  </table>
+  <p>Основной алгоритм для аналитики спринта 6 — <strong>ранжирование ленты</strong> на сигналах вовлечённости.</p>
+  <h3>2.3. Что хранить</h3>
+  <p>Пользователи и сессии; посты и реакции; дружба, сообщения, жалобы; проекты и задачи; вакансии и отклики; события; агрегаты и сырые сигналы ленты; уведомления; файлы в хранилище плюс URL в БД.</p>
+  <h3>2.4. Метрики спринта 6</h3>
+  <table>
+    <thead><tr><th>Метрика</th><th>Формула / смысл</th><th>Данные</th></tr></thead>
+    <tbody>
+      <tr><td>CTR поста</td><td>clicks / impressions</td><td>вовлечённость, сигналы</td></tr>
+      <tr><td>Время чтения</td><td>read_ms / показы</td><td>сигналы ленты</td></tr>
+      <tr><td>Время видео</td><td>watch_ms / показы с видео</td><td>сигналы ленты</td></tr>
+      <tr><td>Выход из test-тира</td><td>expanded / новые посты</td><td>распределение постов</td></tr>
+      <tr><td>Конверсия email</td><td>подтверждённые / регистрации</td><td>пользователь</td></tr>
+      <tr><td>Доля с проектом</td><td>участники проектов / пользователи</td><td>членство</td></tr>
+      <tr><td>Заявки в команду</td><td>принято / всего</td><td>заявки, роли</td></tr>
+      <tr><td>Воронка вакансий</td><td>отклик → offer</td><td>отклики, статусы</td></tr>
+      <tr><td>Жалобы / ошибки</td><td>частота</td><td>жалобы, логи</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="page">
+  <h2>3. Концептуальная модель данных</h2>
+  <p>Объекты предметной области и связи <strong>без</strong> типов SQL и физических ключей. Нотация: прямоугольник — сущность, верхняя полоса — имя, ниже — атрибуты. Линия — связь, подпись — кардинальность.</p>
+  <p class="legend">
+    <span class="swatch" style="background:#ede9fe"></span>Идентичность
+    <span class="swatch" style="background:#dbeafe"></span>Лента
+    <span class="swatch" style="background:#d1fae5"></span>Проекты
+    <span class="swatch" style="background:#fef3c7"></span>Институты
+    <span class="swatch" style="background:#fce7f3"></span>Контент
+    <span class="swatch" style="background:#e5e7eb"></span>Операции
+  </p>
+  <p class="caption">Рисунок 1. Обзорная ER: пользователь как центр предметной области.</p>
+  <div class="diagram-wrap" id="er-core"></div>
+</section>
+
+<section class="page">
+  <h3>3.1. Идентичность и социальный граф</h3>
+  <div class="diagram-wrap" id="er-id"></div>
+  <p class="caption">Рисунок 2. Пользователь, профили, сессия, дружба, сообщения, жалобы.</p>
+  <table>
+    <thead><tr><th>Связь</th><th>Кардинальность</th><th>Смысл</th></tr></thead>
+    <tbody>
+      <tr><td>Пользователь — Профиль компании / вуза</td><td>1 — 0..1</td><td>роль уточняется профилем, отдельного логина нет</td></tr>
+      <tr><td>Пользователь — Сессия</td><td>1 — N</td><td>токены входа</td></tr>
+      <tr><td>Пользователь — Пользователь (дружба)</td><td>N — N</td><td>заявка со статусом</td></tr>
+      <tr><td>Пользователь — Сообщение</td><td>1 — N (две роли)</td><td>отправитель и получатель</td></tr>
+      <tr><td>Пользователь — Жалоба</td><td>1 — N</td><td>цель жалобы полиморфна</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="page">
+  <h3>3.2. Лента и сигналы ранжирования</h3>
+  <div class="diagram-wrap" id="er-feed"></div>
+  <p class="caption">Рисунок 3. Пост, реакции, комментарии, репосты, сырые сигналы и агрегаты для алгоритма ленты.</p>
+</section>
+
+<section class="page">
+  <h3>3.3. Проект как агрегат</h3>
+  <div class="diagram-wrap" id="er-project"></div>
+  <p class="caption">Рисунок 4. Проект, команда, роли, задачи, документы, обновления, встречи, идеи.</p>
+  <table>
+    <thead><tr><th>Связь</th><th>Кардинальность</th></tr></thead>
+    <tbody>
+      <tr><td>Пользователь владеет Проектом</td><td>1 — N</td></tr>
+      <tr><td>Проект — Пользователь через Участие</td><td>N — N</td></tr>
+      <tr><td>Проект — Задача / Документ / Обновление / Веха / Ресурс</td><td>1 — N</td></tr>
+      <tr><td>Задача — Задача (зависимость)</td><td>N — N</td></tr>
+      <tr><td>Документ — Документ (иерархия)</td><td>1 — 0..N</td></tr>
+      <tr><td>Роль в проекте — Заявка</td><td>1 — N</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="page">
+  <h3>3.4. Университеты, компании, вакансии, события</h3>
+  <div class="diagram-wrap" id="er-org"></div>
+  <p class="caption">Рисунок 5. Профили организаций, собственные ленты, вакансии, мероприятия.</p>
+</section>
+
+<section class="page">
+  <h3>3.5. Обучение, обсуждения, realtime</h3>
+  <div class="diagram-wrap" id="er-content"></div>
+  <p class="caption">Рисунок 6. Курсы платформы, статьи, Q&amp;A, буфер SSE. Курсы вуза и курсы платформы — разные сущности.</p>
+  <div class="note">Концептуальная модель не фиксирует СУБД. Физические таблицы, PK/FK и дубли имён (две модели дружбы, два комментария к задаче) относятся к спринту 3.</div>
+</section>
+
+<section class="page">
+  <h2>4. Предварительная архитектура</h2>
+  <p>Компоненты продукта. Детализация — после PoC в спринте 3.</p>
+  <div class="arch">Пользователь (браузер, SPA)
+        │  HTTPS
+        ▼
+   nginx  — статика, /api, /uploads, /p/{slug}
+        │
+        ├── index.html + JS          интерфейс
+        ├── p.php                    SEO публичного проекта
+        └── PHP-FPM  api/*.php       серверная часть
+                │
+                ├── MariaDB          пользователи, лента, проекты, сигналы
+                ├── uploads/         файлы
+                ├── sse.php          realtime (чтение буфера событий)
+                ├── feed ranking     вычислительный модуль ленты
+                └── Resend           внешний API почты</div>
+  <table>
+    <thead><tr><th>Компонент</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td>Интерфейс</td><td>SPA, экраны зависят от роли</td></tr>
+      <tr><td>Серверная часть</td><td>PHP JSON API, сессия Bearer</td></tr>
+      <tr><td>База данных</td><td>MariaDB, источник правды</td></tr>
+      <tr><td>Вычислительный модуль</td><td>ранжирование ленты и affinity</td></tr>
+      <tr><td>Файловое хранилище</td><td>каталог за nginx</td></tr>
+      <tr><td>Внешние API</td><td>почта Resend; карты событий</td></tr>
+    </tbody>
+  </table>
+  <p>Прод: nginx + PHP + MariaDB. Отдельного ML-сервиса нет.</p>
+</section>
+
+<section class="page">
+  <h2>5. MVP</h2>
+  <p><strong>Минимальный сценарий:</strong> (1) регистрация студента, подтверждение email, вход; (2) пост в ленте; (3) проект и одна задача; (4) отклик на вакансию <em>или</em> заявка в команду; (5) повторный вход — данные сохранены.</p>
+  <table>
+    <thead><tr><th>Обязательно</th><th>Расширение семестра</th></tr></thead>
+    <tbody>
+      <tr><td>Auth и роли student / company</td><td>админка, бейджи</td></tr>
+      <tr><td>Пост, лайк, комментарий</td><td>tier-распространение, A/B</td></tr>
+      <tr><td>Проект: создать, участники, канбан</td><td>ресурсы, Gantt, wiki-дерево</td></tr>
+      <tr><td>Дружба или сообщения</td><td>typing, presence</td></tr>
+      <tr><td>Вакансия + отклик или страница вуза</td><td>курсы платформы, статьи, Q&amp;A</td></tr>
+      <tr><td>Один тип медиа</td><td>видео, GIF, OG-превью</td></tr>
+      <tr><td>Список уведомлений</td><td>Web Push, SSE</td></tr>
+    </tbody>
+  </table>
+  <p>Ядро MVP в репозитории уже есть. До конца семестра команда дожимает сценарий, метрики спринта 6 и релиз.</p>
+</section>
+
+<section class="page">
+  <h2>6. Roadmap и управление задачами</h2>
+  <p>Логика: проектирование → реализация → интерфейс и интеграция → аналитика → релиз. Спринты <strong>4 и 7 фиксированы</strong> программой курса.</p>
+  <p class="caption">Рисунок 7. Календарный roadmap до финального релиза.</p>
+  <div class="diagram-wrap" id="roadmap"></div>
+</section>
+
+<section class="page">
+  <h3>6.1. Содержание спринтов</h3>
+  <table>
+    <thead><tr><th>Спринт</th><th>Сроки</th><th>Фокус</th><th>Результат</th></tr></thead>
+    <tbody>
+      <tr><td>2</td><td>15–28.09.2026</td><td>требования, данные, ER, архитектура, MVP</td><td>этот документ</td></tr>
+      <tr><td>3</td><td>29.09–12.10.2026</td><td>детальная архитектура, PoC ленты</td><td>схема + сбор сигналов</td></tr>
+      <tr><td>4 (фикс.)</td><td>13–26.10.2026</td><td>интеграция сценария</td><td>демо: регистрация → проект → лента → отклик</td></tr>
+      <tr><td>5</td><td>27.10–16.11.2026</td><td>интерфейс и роли</td><td>связный UI MVP</td></tr>
+      <tr><td>6</td><td>17.11–07.12.2026</td><td>аналитика</td><td>отчёт по метрикам п. 2.4</td></tr>
+      <tr><td>7 (фикс.)</td><td>08–21.12.2026</td><td>релиз</td><td>прод, чек-лист, защита</td></tr>
+    </tbody>
+  </table>
+  <p class="caption">Рисунок 8. Поток работ (зависимости эпиков).</p>
+  <div class="diagram-wrap" id="flow"></div>
+
+  <h3>6.2. Спринт 3 — декомпозиция</h3>
+  <table class="roadmap-task">
+    <thead><tr><th>ID</th><th>Задача</th><th>Роль</th><th>Статус</th></tr></thead>
+    <tbody>
+      <tr><td>3.1</td><td>Схема компонентов: клиент, API, БД, ranking, SSE, почта, uploads</td><td>архитектор</td><td>To do</td></tr>
+      <tr><td>3.2</td><td>Контракты API счастливого пути</td><td>backend</td><td>To do</td></tr>
+      <tr><td>3.3</td><td>Сверка концептуальной ER с фактическими таблицами</td><td>backend</td><td>To do</td></tr>
+      <tr><td>3.4</td><td>PoC: клиент шлёт impression/click/read_ms</td><td>fullstack</td><td>To do</td></tr>
+      <tr><td>3.5</td><td>PoC: лента recommendations использует сигналы</td><td>backend</td><td>To do</td></tr>
+      <tr><td>3.6</td><td>Проверка верификации email на стенде</td><td>backend</td><td>To do</td></tr>
+      <tr><td>3.7</td><td>Реестр рисков (413, SSE, дубли таблиц)</td><td>тимлид</td><td>To do</td></tr>
+      <tr><td>3.8</td><td>Критерии приёмки спринта 4 (демо 5 мин)</td><td>тимлид</td><td>To do</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.3. Спринт 4 — фиксированная интеграция</h3>
+  <table class="roadmap-task">
+    <thead><tr><th>ID</th><th>Задача</th><th>Роль</th><th>Статус</th></tr></thead>
+    <tbody>
+      <tr><td>4.1</td><td>Сквозной сценарий студента на чистом аккаунте</td><td>QA / fullstack</td><td>To do</td></tr>
+      <tr><td>4.2</td><td>Компания: вакансия → отклик виден</td><td>backend</td><td>To do</td></tr>
+      <tr><td>4.3</td><td>Публичная ссылка /p/{slug}</td><td>frontend</td><td>To do</td></tr>
+      <tr><td>4.4</td><td>Регрессия логина, ленты, канбана</td><td>QA</td><td>To do</td></tr>
+      <tr><td>4.5</td><td>Запись демо / стенд контрольной точки</td><td>тимлид</td><td>To do</td></tr>
+      <tr><td>4.6</td><td>P0-баги блокеров сценария</td><td>команда</td><td>To do</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="page">
+  <h3>6.4. Эпики спринтов 5–7</h3>
+  <table>
+    <thead><tr><th>Спринт</th><th>Эпики</th></tr></thead>
+    <tbody>
+      <tr><td>5 · интерфейс</td><td>онбординг и три роли; проекты (роли, заявки, канбан); вакансии; события; уведомления в шапке</td></tr>
+      <tr><td>6 · аналитика</td><td>CTR, время чтения, воронка вакансий, конверсия email; отчёт по гипотезе ранжирования</td></tr>
+      <tr><td>7 · релиз</td><td>проверка стенда, деплой на mendflow.us, инструкция, защита: сценарий + метрики + границы MVP</td></tr>
+    </tbody>
+  </table>
+  <p>Доска: GitHub Projects / Notion / Trello. Колонки Backlog → Sprint N → In progress → Review → Done. Поля: спринт, ответственный, статус. Спринт 4 не закрывать, пока 4.1–4.3 не Done.</p>
+
+  <h2>Итог спринта 2</h2>
+  <table>
+    <thead><tr><th>Требование задания</th><th>Раздел</th></tr></thead>
+    <tbody>
+      <tr><td>Спецификация требований</td><td>1</td></tr>
+      <tr><td>Данные и метрики аналитики</td><td>2</td></tr>
+      <tr><td>Концептуальная ER</td><td>3, рисунки 1–6</td></tr>
+      <tr><td>Предварительная архитектура</td><td>4</td></tr>
+      <tr><td>MVP и границы</td><td>1.6, 5</td></tr>
+      <tr><td>Доска и план до релиза</td><td>6, рисунки 7–8</td></tr>
+    </tbody>
+  </table>
+  <p class="footer-note">Mendflow · Спринт 2 · концептуальная модель без привязки к СУБД · roadmap до фиксированного релиза в спринте 7</p>
+</section>
+
+<script>
+(function () {
+  const NS = "http://www.w3.org/2000/svg";
+  function el(name, attrs, text) {
+    const n = document.createElementNS(NS, name);
+    Object.entries(attrs || {}).forEach(([k, v]) => n.setAttribute(k, String(v)));
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function drawER(mountId, spec) {
+    const W = spec.width, H = spec.height;
+    const svg = el("svg", { class: "erd", viewBox: "0 0 " + W + " " + H, width: W, height: H });
+    svg.appendChild(el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fff" }));
+
+    const boxes = {};
+    spec.entities.forEach((e) => {
+      const w = e.w || 168, rowH = 14, head = 22;
+      const h = head + 8 + e.attrs.length * rowH;
+      boxes[e.id] = { x: e.x, y: e.y, w, h, cx: e.x + w / 2, cy: e.y + h / 2 };
+      const g = el("g", {});
+      g.appendChild(el("rect", { x: e.x, y: e.y, width: w, height: h, fill: "#fff", stroke: "#7c6aad", "stroke-width": 1 }));
+      g.appendChild(el("rect", { x: e.x, y: e.y, width: w, height: head, fill: e.fill || "#ede9fe", stroke: "#7c6aad" }));
+      g.appendChild(el("text", { x: e.x + w / 2, y: e.y + 15, "text-anchor": "middle", "font-size": 11, "font-family": "Segoe UI, Arial, sans-serif", "font-weight": 700, fill: "#1a1523" }, e.title));
+      e.attrs.forEach((a, i) => {
+        g.appendChild(el("text", { x: e.x + 8, y: e.y + head + 14 + i * rowH, "font-size": 9, "font-family": "Segoe UI, Arial, sans-serif", fill: "#3f3a4a" }, a));
+      });
+      svg.appendChild(g);
+    });
+
+    spec.links.forEach((l) => {
+      const a = boxes[l.from], b = boxes[l.to];
+      if (!a || !b) return;
+      const x1 = a.cx, y1 = a.cy, x2 = b.cx, y2 = b.cy;
+      svg.insertBefore(el("line", { x1, y1, x2, y2, stroke: "#8b80a8", "stroke-width": 1 }), svg.firstChild.nextSibling);
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      if (l.card) {
+        const t = el("text", { x: mx, y: my - 4, "text-anchor": "middle", "font-size": 8.5, "font-family": "Segoe UI, Arial, sans-serif", fill: "#5b21b6", "font-weight": 650 }, l.card);
+        svg.appendChild(t);
+      }
+    });
+
+    document.getElementById(mountId).appendChild(svg);
+  }
+
+  const C = { id: "#ede9fe", feed: "#dbeafe", proj: "#d1fae5", org: "#fef3c7", cont: "#fce7f3", ops: "#e5e7eb" };
+
+  drawER("er-core", {
+    width: 900, height: 430,
+    entities: [
+      { id: "u", title: "Пользователь", x: 366, y: 160, fill: C.id, attrs: ["роль", "email", "профиль"] },
+      { id: "co", title: "Профиль компании", x: 620, y: 20, fill: C.org, attrs: ["название", "отрасль"] },
+      { id: "un", title: "Профиль вуза", x: 620, y: 110, fill: C.org, attrs: ["название", "город"] },
+      { id: "pr", title: "Проект", x: 620, y: 210, fill: C.proj, attrs: ["стадия", "публичность"] },
+      { id: "ev", title: "Мероприятие", x: 620, y: 310, fill: C.cont, attrs: ["формат", "время"] },
+      { id: "po", title: "Пост", x: 80, y: 40, fill: C.feed, attrs: ["текст", "медиа"] },
+      { id: "msg", title: "Сообщение", x: 80, y: 160, fill: C.id, attrs: ["текст", "прочитано"] },
+      { id: "vac", title: "Вакансия", x: 80, y: 280, fill: C.org, attrs: ["тип", "статус"] },
+      { id: "se", title: "Сессия", x: 366, y: 40, fill: C.id, attrs: ["токен", "срок"] },
+      { id: "nt", title: "Уведомление", x: 366, y: 320, fill: C.ops, attrs: ["тип", "прочитано"] }
+    ],
+    links: [
+      { from: "u", to: "co", card: "1:0..1" },
+      { from: "u", to: "un", card: "1:0..1" },
+      { from: "u", to: "pr", card: "1:N" },
+      { from: "u", to: "ev", card: "1:N" },
+      { from: "u", to: "po", card: "1:N" },
+      { from: "u", to: "msg", card: "N:N" },
+      { from: "co", to: "vac", card: "1:N" },
+      { from: "u", to: "se", card: "1:N" },
+      { from: "u", to: "nt", card: "1:N" }
+    ]
+  });
+
+  drawER("er-id", {
+    width: 900, height: 480,
+    entities: [
+      { id: "u", title: "Пользователь", x: 360, y: 170, w: 180, fill: C.id, attrs: ["роль", "email", "хеш пароля", "верификация", "город", "интересы"] },
+      { id: "se", title: "Сессия", x: 40, y: 20, fill: C.id, attrs: ["токен", "срок"] },
+      { id: "ev", title: "Подтв. email", x: 40, y: 130, fill: C.id, attrs: ["код", "срок"] },
+      { id: "pr", title: "Сброс пароля", x: 40, y: 240, fill: C.id, attrs: ["токен", "использован"] },
+      { id: "in", title: "Интерес", x: 40, y: 350, fill: C.id, attrs: ["название"] },
+      { id: "co", title: "Профиль компании", x: 680, y: 20, fill: C.org, attrs: ["название", "отрасль", "вериф."] },
+      { id: "un", title: "Профиль вуза", x: 680, y: 140, fill: C.org, attrs: ["название", "город"] },
+      { id: "fr", title: "Дружба", x: 680, y: 250, fill: C.id, attrs: ["стороны", "статус"] },
+      { id: "ms", title: "Сообщение", x: 360, y: 20, fill: C.id, attrs: ["текст", "прочитано"] },
+      { id: "bl", title: "Блокировка", x: 360, y: 360, fill: C.ops, attrs: ["кто", "кого"] },
+      { id: "rp", title: "Жалоба", x: 680, y: 360, fill: C.ops, attrs: ["цель", "причина", "статус"] }
+    ],
+    links: [
+      { from: "u", to: "se", card: "1:N" },
+      { from: "u", to: "ev", card: "1:N" },
+      { from: "u", to: "pr", card: "1:N" },
+      { from: "u", to: "in", card: "1:N" },
+      { from: "u", to: "co", card: "1:0..1" },
+      { from: "u", to: "un", card: "1:0..1" },
+      { from: "u", to: "fr", card: "N:N" },
+      { from: "u", to: "ms", card: "1:N" },
+      { from: "u", to: "bl", card: "N:N" },
+      { from: "u", to: "rp", card: "1:N" }
+    ]
+  });
+
+  drawER("er-feed", {
+    width: 900, height: 420,
+    entities: [
+      { id: "u", title: "Пользователь", x: 20, y: 160, fill: C.id, attrs: ["id"] },
+      { id: "p", title: "Пост", x: 260, y: 140, w: 170, fill: C.feed, attrs: ["текст", "медиа", "время"] },
+      { id: "lk", title: "Лайк", x: 520, y: 10, fill: C.feed, attrs: ["кто", "пост"] },
+      { id: "cm", title: "Комментарий", x: 520, y: 100, fill: C.feed, attrs: ["текст", "автор"] },
+      { id: "rp", title: "Репост", x: 520, y: 190, fill: C.feed, attrs: ["кто", "пост"] },
+      { id: "sg", title: "Сигнал ленты", x: 520, y: 280, fill: C.feed, attrs: ["показ / клик", "read_ms", "watch_ms"] },
+      { id: "en", title: "Вовлечённость", x: 720, y: 40, fill: C.feed, attrs: ["impressions", "clicks"] },
+      { id: "di", title: "Распределение", x: 720, y: 150, fill: C.feed, attrs: ["tier", "test-показы"] },
+      { id: "af", title: "Affinity", x: 720, y: 270, fill: C.feed, attrs: ["пара users", "score"] },
+      { id: "nt", title: "Уведомление", x: 260, y: 300, fill: C.ops, attrs: ["тип", "пост"] }
+    ],
+    links: [
+      { from: "u", to: "p", card: "1:N" },
+      { from: "p", to: "lk", card: "1:N" },
+      { from: "p", to: "cm", card: "1:N" },
+      { from: "p", to: "rp", card: "1:N" },
+      { from: "p", to: "sg", card: "1:N" },
+      { from: "p", to: "en", card: "1:0..1" },
+      { from: "p", to: "di", card: "1:0..1" },
+      { from: "u", to: "af", card: "N:N" },
+      { from: "u", to: "nt", card: "1:N" }
+    ]
+  });
+
+  drawER("er-project", {
+    width: 920, height: 520,
+    entities: [
+      { id: "u", title: "Пользователь", x: 20, y: 210, fill: C.id, attrs: ["id"] },
+      { id: "p", title: "Проект", x: 240, y: 180, w: 175, fill: C.proj, attrs: ["название", "стадия", "slug", "публичность"] },
+      { id: "m", title: "Участие", x: 480, y: 10, fill: C.proj, attrs: ["роль доступа", "специализация"] },
+      { id: "r", title: "Роль в команде", x: 480, y: 100, fill: C.proj, attrs: ["слоты", "статус"] },
+      { id: "a", title: "Заявка на роль", x: 700, y: 100, fill: C.proj, attrs: ["сообщение", "статус"] },
+      { id: "t", title: "Задача", x: 480, y: 200, fill: C.proj, attrs: ["статус канбана", "срок", "зависимости"] },
+      { id: "ms", title: "Веха", x: 700, y: 200, fill: C.proj, attrs: ["стадия", "статус"] },
+      { id: "d", title: "Документ", x: 480, y: 310, fill: C.proj, attrs: ["вид doc/wiki", "родитель"] },
+      { id: "up", title: "Обновление", x: 700, y: 10, fill: C.proj, attrs: ["тип", "текст"] },
+      { id: "mt", title: "Встреча", x: 700, y: 310, fill: C.proj, attrs: ["начало", "ссылка"] },
+      { id: "rs", title: "Ресурс / план", x: 480, y: 410, fill: C.proj, attrs: ["вид", "объём"] },
+      { id: "fr", title: "Идея / feature", x: 700, y: 410, fill: C.proj, attrs: ["голоса", "статус"] }
+    ],
+    links: [
+      { from: "u", to: "p", card: "1:N владелец" },
+      { from: "p", to: "m", card: "1:N" },
+      { from: "u", to: "m", card: "N:N" },
+      { from: "p", to: "r", card: "1:N" },
+      { from: "r", to: "a", card: "1:N" },
+      { from: "p", to: "t", card: "1:N" },
+      { from: "ms", to: "t", card: "1:0..N" },
+      { from: "p", to: "d", card: "1:N" },
+      { from: "p", to: "up", card: "1:N" },
+      { from: "p", to: "mt", card: "1:N" },
+      { from: "p", to: "rs", card: "1:N" },
+      { from: "p", to: "fr", card: "1:N" }
+    ]
+  });
+
+  drawER("er-org", {
+    width: 920, height: 500,
+    entities: [
+      { id: "u", title: "Пользователь", x: 20, y: 200, fill: C.id, attrs: ["роль"] },
+      { id: "co", title: "Профиль компании", x: 230, y: 40, fill: C.org, attrs: ["название", "отрасль"] },
+      { id: "un", title: "Профиль вуза", x: 230, y: 280, fill: C.org, attrs: ["название", "город"] },
+      { id: "cp", title: "Пост компании", x: 460, y: 10, fill: C.org, attrs: ["текст", "вложение"] },
+      { id: "cf", title: "Подписка на комп.", x: 460, y: 110, fill: C.org, attrs: ["кто"] },
+      { id: "vc", title: "Вакансия", x: 460, y: 200, fill: C.org, attrs: ["тип", "статус", "срок"] },
+      { id: "ap", title: "Отклик", x: 700, y: 200, fill: C.org, attrs: ["статус воронки"] },
+      { id: "uc", title: "Курс вуза", x: 460, y: 300, fill: C.org, attrs: ["направление", "кредиты"] },
+      { id: "cl", title: "Клуб", x: 700, y: 300, fill: C.org, attrs: ["категория"] },
+      { id: "ex", title: "Обмен", x: 460, y: 400, fill: C.org, attrs: ["партнёр", "дедлайн"] },
+      { id: "up", title: "Пост вуза", x: 700, y: 400, fill: C.org, attrs: ["автор university/club"] },
+      { id: "ev", title: "Мероприятие", x: 20, y: 40, fill: C.cont, attrs: ["формат", "город"] },
+      { id: "ea", title: "Участие в ивенте", x: 20, y: 360, fill: C.cont, attrs: ["going / interested"] }
+    ],
+    links: [
+      { from: "u", to: "co", card: "1:0..1" },
+      { from: "u", to: "un", card: "1:0..1" },
+      { from: "co", to: "cp", card: "1:N" },
+      { from: "co", to: "cf", card: "1:N" },
+      { from: "co", to: "vc", card: "1:N" },
+      { from: "vc", to: "ap", card: "1:N" },
+      { from: "u", to: "ap", card: "1:N" },
+      { from: "un", to: "uc", card: "1:N" },
+      { from: "un", to: "cl", card: "1:N" },
+      { from: "un", to: "ex", card: "1:N" },
+      { from: "un", to: "up", card: "1:N" },
+      { from: "u", to: "ev", card: "1:N" },
+      { from: "ev", to: "ea", card: "N:N" }
+    ]
+  });
+
+  drawER("er-content", {
+    width: 920, height: 440,
+    entities: [
+      { id: "u", title: "Пользователь", x: 20, y: 160, fill: C.id, attrs: ["id"] },
+      { id: "c", title: "Курс платформы", x: 230, y: 20, fill: C.cont, attrs: ["уровень", "статус"] },
+      { id: "ls", title: "Урок", x: 460, y: 20, fill: C.cont, attrs: ["порядок", "контент"] },
+      { id: "en", title: "Запись на курс", x: 460, y: 120, fill: C.cont, attrs: ["прогресс %"] },
+      { id: "ar", title: "Статья", x: 230, y: 180, fill: C.cont, attrs: ["черновик/публикация"] },
+      { id: "bk", title: "Закладка", x: 460, y: 180, fill: C.cont, attrs: ["кто"] },
+      { id: "ds", title: "Обсуждение", x: 230, y: 280, fill: C.cont, attrs: ["статус", "лучший ответ"] },
+      { id: "an", title: "Ответ", x: 460, y: 280, fill: C.cont, attrs: ["голоса", "ветка"] },
+      { id: "rt", title: "Событие realtime", x: 700, y: 40, fill: C.ops, attrs: ["тип", "проект?", "payload"] },
+      { id: "ps", title: "Присутствие", x: 700, y: 160, fill: C.ops, attrs: ["контекст правки"] },
+      { id: "ty", title: "Набор текста", x: 700, y: 270, fill: C.ops, attrs: ["контекст"] }
+    ],
+    links: [
+      { from: "u", to: "c", card: "1:N автор" },
+      { from: "c", to: "ls", card: "1:N" },
+      { from: "c", to: "en", card: "N:N" },
+      { from: "u", to: "ar", card: "1:N" },
+      { from: "ar", to: "bk", card: "N:N" },
+      { from: "u", to: "ds", card: "1:N" },
+      { from: "ds", to: "an", card: "1:N" },
+      { from: "u", to: "rt", card: "пишет/читает" },
+      { from: "u", to: "ps", card: "1:N" },
+      { from: "u", to: "ty", card: "1:N" }
+    ]
+  });
+
+  /* Roadmap Gantt-like */
+  (function () {
+    const svg = el("svg", { class: "erd", viewBox: "0 0 920 280", width: 920, height: 280 });
+    svg.appendChild(el("rect", { x: 0, y: 0, width: 920, height: 280, fill: "#fff" }));
+    const rows = [
+      { name: "Спринт 2  Требования, ER", x: 150, w: 110, fill: "#7c3aed", done: true },
+      { name: "Спринт 3  Архитектура, PoC", x: 268, w: 110, fill: "#8b5cf6" },
+      { name: "Спринт 4  Интеграция (фикс.)", x: 386, w: 110, fill: "#c4b5fd" },
+      { name: "Спринт 5  UI и роли", x: 504, w: 130, fill: "#8b5cf6" },
+      { name: "Спринт 6  Аналитика", x: 642, w: 118, fill: "#8b5cf6" },
+      { name: "Спринт 7  Релиз (фикс.)", x: 768, w: 118, fill: "#c4b5fd" }
+    ];
+    const dates = ["15.09", "29.09", "13.10", "27.10", "17.11", "08.12", "21.12"];
+    dates.forEach((d, i) => {
+      const x = 150 + i * 118;
+      svg.appendChild(el("line", { x1: x, y1: 28, x2: x, y2: 250, stroke: "#eee4fb", "stroke-width": 1 }));
+      svg.appendChild(el("text", { x, y: 20, "font-size": 9, fill: "#6b6380", "text-anchor": "middle", "font-family": "Segoe UI, Arial" }, d));
+    });
+    rows.forEach((r, i) => {
+      const y = 44 + i * 36;
+      svg.appendChild(el("text", { x: 8, y: y + 16, "font-size": 10, fill: "#1a1523", "font-family": "Segoe UI, Arial" }, r.name.split("  ")[0]));
+      svg.appendChild(el("rect", { x: r.x, y: y, width: r.w, height: 22, rx: 3, fill: r.fill }));
+      svg.appendChild(el("text", { x: r.x + 8, y: y + 15, "font-size": 9, fill: "#fff", "font-family": "Segoe UI, Arial", "font-weight": 650 }, r.name.split("  ")[1] || ""));
+    });
+    svg.appendChild(el("text", { x: 150, y: 272, "font-size": 9, fill: "#6b6380", "font-family": "Segoe UI, Arial" }, "Фиолетовый — командные спринты. Светлый — фиксированные контрольные точки курса (4 и 7). Спринт 2 выполнен."));
+    document.getElementById("roadmap").appendChild(svg);
+  })();
+
+  (function () {
+    const svg = el("svg", { class: "erd", viewBox: "0 0 900 150", width: 900, height: 150 });
+    svg.appendChild(el("rect", { x: 0, y: 0, width: 900, height: 150, fill: "#fff" }));
+    const boxes = [
+      [20, "Спринт 2\nтребования"],
+      [170, "Спринт 3\nPoC ленты"],
+      [320, "Спринт 4\nдемо сценария"],
+      [470, "Спринт 5\nUI интеграция"],
+      [620, "Спринт 6\nметрики"],
+      [770, "Спринт 7\nрелиз"]
+    ];
+    boxes.forEach((b, i) => {
+      svg.appendChild(el("rect", { x: b[0], y: 40, width: 120, height: 56, fill: i === 0 ? "#ede9fe" : "#fff", stroke: "#7c3aed" }));
+      const lines = b[1].split("\n");
+      lines.forEach((ln, k) => {
+        svg.appendChild(el("text", { x: b[0] + 60, y: 64 + k * 16, "text-anchor": "middle", "font-size": 11, fill: "#1a1523", "font-family": "Segoe UI, Arial", "font-weight": k ? 400 : 700 }, ln));
+      });
+      if (i < boxes.length - 1) {
+        svg.appendChild(el("line", { x1: b[0] + 120, y1: 68, x2: boxes[i + 1][0], y2: 68, stroke: "#7c3aed", "stroke-width": 1.5 }));
+      }
+    });
+    svg.appendChild(el("text", { x: 450, y: 130, "text-anchor": "middle", "font-size": 10, fill: "#5b5670", "font-family": "Segoe UI, Arial" }, "проектирование → реализация → интерфейс → аналитика → релиз"));
+    document.getElementById("flow").appendChild(svg);
+  })();
+})();
+</script>
+</body>
+</html>
