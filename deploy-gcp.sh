@@ -34,8 +34,12 @@ if [ -n "$(git status --porcelain --untracked-files=no)" ] || { [ $# -gt 0 ] && 
   if git diff --cached --name-only | grep -qE '(^|/)\.env$'; then
     echo "✗ .env попал в коммит — отмена"; git reset -q; exit 1
   fi
-  git commit -q -m "$1"
-  echo "✓ Коммит: $1"
+  if git diff --cached --quiet; then
+    echo "• Нечего коммитить — выкатываю текущий коммит"
+  else
+    git commit -q -m "$1"
+    echo "✓ Коммит: $1"
+  fi
 fi
 
 echo "→ git push"
