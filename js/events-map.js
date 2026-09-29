@@ -4,8 +4,9 @@
 (function () {
   'use strict';
 
-  const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-  const TILE_ATTR = '&copy; OpenStreetMap &copy; CARTO';
+  const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  const TILE_OPTS = { attribution: TILE_ATTR, maxZoom: 19, className: 'mf-dark-tiles' };
   const DEFAULT_CENTER = [43.238949, 76.889709]; // Алматы
   const DEFAULT_ZOOM = 11;
 
@@ -134,7 +135,7 @@
     if (!el || state.exploreReady) return;
     const L = await waitLeaflet();
     state.exploreMap = L.map(el, baseMapOptions()).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-    L.tileLayer(TILE_URL, { attribution: TILE_ATTR, subdomains: 'abcd', maxZoom: 19 }).addTo(state.exploreMap);
+    L.tileLayer(TILE_URL, TILE_OPTS).addTo(state.exploreMap);
     state.exploreLayer = L.layerGroup().addTo(state.exploreMap);
     const wrap = el.closest('.ev-map-canvas') || el.parentElement;
     if (wrap) addFuturisticControls(L, state.exploreMap, wrap);
@@ -395,7 +396,7 @@
     const L = await waitLeaflet();
     if (!state.createMap) {
       state.createMap = L.map(el, { ...baseMapOptions(), scrollWheelZoom: true }).setView(DEFAULT_CENTER, 12);
-      L.tileLayer(TILE_URL, { attribution: TILE_ATTR, subdomains: 'abcd', maxZoom: 19 }).addTo(state.createMap);
+      L.tileLayer(TILE_URL, TILE_OPTS).addTo(state.createMap);
       state.createMap.on('click', async (e) => {
         state.locationVerified = false;
         setAddressStatus('Определяем адрес…', null);
