@@ -153,8 +153,24 @@ try {
             $content = trim($data['content']  ?? '');
             if (!$postId || !$content) { http_response_code(400); echo json_encode(['error'=>'Пустой комментарий']); exit; }
 
+            $postStmt = $pdo->prepare("SELECT project_id, title, content FROM project_posts WHERE id=?");
+            $postStmt->execute([$postId]);
+            $postRow = $postStmt->fetch();
+            if (!$postRow) { http_response_code(404); echo json_encode(['error'=>'Пост не найден']); exit; }
+            $projectId = (int)$postRow['project_id'];
+
             $pdo->prepare("INSERT INTO project_post_comments (post_id, author_id, content) VALUES (?,?,?)")->execute([$postId, $userId, $content]);
             $commentId = (int)$pdo->lastInsertId();
+
+            $preview = trim((string)($postRow['title'] ?? ''));
+            if ($preview === '') {
+                $preview = mb_substr(trim((string)($postRow['content'] ?? '')), 0, 60);
+            }
+            $postType = 'project_' . $projectId;
+            foreach (parseAtMentions($pdo, $projectId, $content) as $uid) {
+                if ($uid === $userId) continue;
+                insertAppNotification($pdo, $uid, $userId, 'post_mentioned', $postId, $preview ?: 'Публикация', $postType);
+            }
 
             $stmt = $pdo->prepare("SELECT c.*, u.first_name, u.last_name, u.avatar FROM project_post_comments c JOIN users u ON c.author_id=u.id WHERE c.id=?");
             $stmt->execute([$commentId]);

@@ -18,15 +18,15 @@ DB_USER="${DB_USER:-mendflow}"
 DB_NAME="${DB_NAME:-mendflow}"
 DB_PASS="${DB_PASS:-}"
 
-SQL_FILE="$ROOT/check_database.sql"
+SQL_FILE="$ROOT/sql/90_check.sql"
 
 if [[ ! -f "$SQL_FILE" ]]; then
-  echo "Нет файла check_database.sql"
+  echo "Нет файла sql/90_check.sql"
   exit 1
 fi
 
 if ! command -v mysql >/dev/null 2>&1; then
-  echo "mysql CLI не найден. Откройте check_database.sql в DBeaver и выполните (Alt+X)."
+  echo "mysql CLI не найден. Откройте sql/90_check.sql в DBeaver и выполните (Alt+X)."
   exit 1
 fi
 

@@ -25,6 +25,22 @@ HOST="${MF_DEPLOY_HOST:-root@104.248.62.230}"
 REMOTE="${MF_DEPLOY_PATH:-/var/www/html/mendflow}"
 APP_URL="${MF_APP_URL:-https://mendflow.us}"
 MODE="${1:-sync}"
+# -4: обход «Network is unreachable» при битом IPv6 на Mac/Wi‑Fi
+SSH_OPTS="${MF_SSH_OPTS:--4 -o ConnectTimeout=20}"
+
+deploy_fail_network() {
+  echo ""
+  echo "✗ Не удалось подключиться к ${HOST}"
+  echo "  Проверка с Mac:"
+  echo "    ping -c 2 104.248.62.230"
+  echo "    ssh ${SSH_OPTS} ${HOST}"
+  echo "    curl -I ${APP_URL}"
+  echo ""
+  echo "  Частые причины: нет интернета, VPN/файрвол блокирует порт 22, другая Wi‑Fi сеть."
+  echo "  Если ssh вручную работает — повторите: ./deploy.sh"
+  echo "  Иначе: ./pack-deploy.sh и залейте mendflow-deploy.tgz через панель DigitalOcean."
+  exit 1
+}
 
 RSYNC_EXCLUDES=(
   --exclude '.git/'
@@ -43,8 +59,10 @@ do_check_local() {
 
 do_sync() {
   echo "→ rsync → ${HOST}:${REMOTE}"
-  rsync -avz --progress "${RSYNC_EXCLUDES[@]}" \
-    "$ROOT/" "${HOST}:${REMOTE}/"
+  if ! rsync -avz --progress -e "ssh ${SSH_OPTS}" "${RSYNC_EXCLUDES[@]}" \
+    "$ROOT/" "${HOST}:${REMOTE}/"; then
+    deploy_fail_network
+  fi
   echo "✓ Синхронизация завершена"
 }
 
@@ -61,9 +79,9 @@ do_full() {
   do_check_local
   bash "$ROOT/pack-deploy.sh"
   echo "→ scp mendflow-deploy.tgz"
-  scp "$ROOT/mendflow-deploy.tgz" "${HOST}:/tmp/mendflow-deploy.tgz"
+  scp $SSH_OPTS "$ROOT/mendflow-deploy.tgz" "${HOST}:/tmp/mendflow-deploy.tgz" || deploy_fail_network
   echo "→ распаковка на сервере"
-  ssh "$HOST" bash -s <<EOF
+  ssh $SSH_OPTS "${HOST}" bash -s <<EOF || deploy_fail_network
 set -e
 cd ${REMOTE}
 cp .env /tmp/mendflow.env.bak 2>/dev/null || true
@@ -76,18 +94,18 @@ EOF
 
 do_auth() {
   echo "→ auth → ${HOST}:${REMOTE}"
-  scp \
+  scp $SSH_OPTS \
     api/register.php api/register-company.php api/register-university.php \
     api/login.php api/verify-email.php api/resend-verification.php \
     api/auth_email.php api/mail.php api/config.php api/db.php api/auth.php \
-    "${HOST}:${REMOTE}/api/"
-  scp js/api-base.js "${HOST}:${REMOTE}/js/"
-  scp index.html "${HOST}:${REMOTE}/"
+    "${HOST}:${REMOTE}/api/" || deploy_fail_network
+  scp $SSH_OPTS js/api-base.js "${HOST}:${REMOTE}/js/" || deploy_fail_network
+  scp $SSH_OPTS index.html "${HOST}:${REMOTE}/" || deploy_fail_network
   echo "✓ Auth залит"
 }
 
 do_check_remote() {
-  ssh "$HOST" "cd ${REMOTE} && bash server-check.sh" || do_remote_smoke
+  ssh $SSH_OPTS "$HOST" "cd ${REMOTE} && bash server-check.sh" || do_remote_smoke
 }
 
 case "$MODE" in

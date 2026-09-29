@@ -28,6 +28,9 @@ tar czf "$OUT" \
   icons \
   deploy \
   index.html \
+  p.php \
+  sitemap.php \
+  robots.txt \
   style.css \
   sw.js \
   manifest.json \
@@ -40,9 +43,7 @@ tar czf "$OUT" \
   pack-deploy.sh \
   pack-auth.sh \
   deploy-auth.sh \
-  reset_email_verification.sql \
-  mendflow_schema.sql \
-  fix_missing_core_tables.sql \
+  sql \
   uploads/.htaccess
 
 # uploads/.htaccess separately if exclude broke it

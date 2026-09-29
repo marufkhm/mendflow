@@ -33,6 +33,12 @@ else
       php -l "$f" || true
     fi
   done < <(find api -name '*.php' -print0)
+  for f in p.php sitemap.php; do
+    if [[ -f "$f" ]] && ! php -l "$f" >/dev/null 2>&1; then
+      fail "syntax error: $f"
+      php -l "$f" || true
+    fi
+  done
   ok "PHP syntax OK"
 fi
 echo ""
@@ -41,6 +47,9 @@ echo ""
 echo "→ Обязательные файлы..."
 REQUIRED=(
   index.html
+  p.php
+  sitemap.php
+  robots.txt
   style.css
   sw.js
   manifest.json
@@ -135,6 +144,7 @@ js_missing=0
 while IFS= read -r src; do
   [[ -z "$src" ]] && continue
   src="${src#./}"
+  src="${src#/}"
   src="${src%%\?*}"
   if [[ ! -f "$src" ]]; then
     fail "index.html подключает отсутствующий файл: $src"

@@ -296,7 +296,7 @@ function assertUniversityOwner(PDO $pdo, int $viewerId, int $uniId): array {
  * либо имеет роль admin/owner в самом клубе. Иначе — 403.
  */
 function assertClubManager(PDO $pdo, int $viewerId, int $clubId): array {
-    $st = $pdo->prepare("SELECT c.*, u.user_id AS uni_owner_id FROM uni_clubs c JOIN universities u ON u.id = c.university_id WHERE c.id = ? LIMIT 1");
+    $st = $pdo->prepare("SELECT c.*, u.user_id AS uni_owner_id FROM uni_clubs c JOIN university_profiles u ON u.id = c.university_id WHERE c.id = ? LIMIT 1");
     $st->execute([$clubId]);
     $club = $st->fetch(PDO::FETCH_ASSOC);
     if (!$club) uniJson(['error' => 'Клуб не найден'], 404);
@@ -877,7 +877,7 @@ try {
             $text = trim($data['text'] ?? '');
             if (!$text) uniJson(['error' => 'Текст поста обязателен'], 400);
             if (!uniTableHasColumns($pdo, 'uni_posts', ['university_id', 'text'])) {
-                uniJson(['error' => 'Таблица uni_posts не настроена. Запустите uni_posts_migration.sql в phpMyAdmin.'], 500);
+                uniJson(['error' => 'Таблица uni_posts не настроена. Запустите sql/10_upgrade_existing.sql.'], 500);
             }
             $authorType = ($data['author_type'] ?? 'university') === 'club' ? 'club' : 'university';
             $entityId = $authorType === 'club' ? (int)($data['entity_id'] ?? 0) : $uniId;

@@ -21,7 +21,7 @@ tar czf "$OUT" \
   js/api-base.js \
   index.html \
   server-update-auth.sh \
-  reset_email_verification.sql
+  sql/91_reset_email_verification.sql
 
 echo "Создан: $OUT"
 echo ""

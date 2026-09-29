@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /p/
+Disallow: /api/
+Disallow: /uploads/
+
+Sitemap: https://mendflow.us/sitemap.php

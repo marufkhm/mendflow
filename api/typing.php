@@ -35,6 +35,18 @@ if ($method === 'POST') {
         exit;
     }
 
+    if ($ctxType === 'chat' && !mfAreFriends($pdo, $userId, $ctxId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Typing доступен только в чатах с друзьями']);
+        exit;
+    }
+
+    if ($ctxType === 'chat' && mfEitherBlocked($pdo, $userId, $ctxId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Typing недоступен']);
+        exit;
+    }
+
     try {
         if ($isTyping) {
             // Upsert with 5-second TTL (enforced on read)

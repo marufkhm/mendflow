@@ -276,7 +276,7 @@ function fetchNewNotifications(PDO $pdo, int $userId, int $cursor): array
                 n.type, n.is_read,
                 n.created_at,
                 u.first_name, u.last_name, u.avatar,
-                p.content AS post_preview
+                LEFT(p.text, 120) AS post_preview
          FROM notifications n
          JOIN users u ON u.id = n.from_user_id
          LEFT JOIN posts p ON p.id = n.post_id

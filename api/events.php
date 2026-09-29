@@ -75,6 +75,8 @@ function ensureEventsSchema(PDO $pdo): void {
                     event_format ENUM('online', 'offline') NOT NULL DEFAULT 'offline',
                     city VARCHAR(120) DEFAULT NULL,
                     location VARCHAR(255) DEFAULT NULL,
+                    latitude DECIMAL(10,7) DEFAULT NULL,
+                    longitude DECIMAL(10,7) DEFAULT NULL,
                     meeting_link VARCHAR(255) DEFAULT NULL,
                     category VARCHAR(80) NOT NULL DEFAULT 'Другое',
                     max_participants INT DEFAULT NULL,
@@ -91,6 +93,16 @@ function ensureEventsSchema(PDO $pdo): void {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
         } catch (Throwable $e) {}
+    }
+
+    if (eventsTableExists($pdo, 'events')) {
+        $eventCols = eventsColumns($pdo, 'events');
+        if (!in_array('latitude', $eventCols, true)) {
+            try { $pdo->exec("ALTER TABLE events ADD COLUMN latitude DECIMAL(10,7) NULL AFTER location"); } catch (Throwable $e) {}
+        }
+        if (!in_array('longitude', $eventCols, true)) {
+            try { $pdo->exec("ALTER TABLE events ADD COLUMN longitude DECIMAL(10,7) NULL AFTER latitude"); } catch (Throwable $e) {}
+        }
     }
 
     if (!eventsTableExists($pdo, 'event_participants')) {
@@ -147,6 +159,105 @@ function eventCreatorType(array $user): string {
     if ($role === 'university') return 'university';
     if ($role === 'company')    return 'company';
     return 'user';
+}
+
+function parseEventCoords($lat, $lng): ?array {
+    if ($lat === null || $lat === '' || $lng === null || $lng === '') return null;
+    $lat = (float)$lat;
+    $lng = (float)$lng;
+    if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) return null;
+    if (abs($lat) < 0.00001 && abs($lng) < 0.00001) return null;
+    return ['lat' => round($lat, 7), 'lng' => round($lng, 7)];
+}
+
+function nominatimGet(string $endpoint, array $params): array {
+    $params['format'] = 'json';
+    $url = 'https://nominatim.openstreetmap.org/' . ltrim($endpoint, '/') . '?' . http_build_query($params);
+    $ctx = stream_context_create([
+        'http' => [
+            'method'  => 'GET',
+            'header'  => "User-Agent: MendflowEvents/1.0 (https://mendflow.us)\r\nAccept: application/json\r\n",
+            'timeout' => 10,
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $ctx);
+    if ($raw === false) return [];
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : [];
+}
+
+function geocodeAddress(string $query, string $city = '', string $street = ''): array {
+    $city   = trim($city);
+    $street = trim($street);
+    $query  = trim($query);
+
+    $rows = [];
+    if ($city !== '' && $street !== '') {
+        $rows = nominatimGet('search', [
+            'street'          => $street,
+            'city'            => $city,
+            'country'         => 'Kazakhstan',
+            'limit'           => 6,
+            'addressdetails'  => 1,
+        ]);
+    }
+    if (!$rows) {
+        $q = $query;
+        if ($q === '' && ($city !== '' || $street !== '')) {
+            $q = trim(implode(', ', array_filter([$street, $city, 'Kazakhstan'])));
+        }
+        if (mb_strlen($q) < 3) return [];
+        $rows = nominatimGet('search', [
+            'q'               => $q,
+            'limit'           => 6,
+            'addressdetails'  => 1,
+            'countrycodes'    => 'kz',
+        ]);
+    }
+    if (!$rows && $query !== '' && mb_strlen($query) >= 3) {
+        $rows = nominatimGet('search', [
+            'q'               => $query,
+            'limit'           => 6,
+            'addressdetails'  => 1,
+        ]);
+    }
+
+    $out = [];
+    foreach ($rows as $row) {
+        if (empty($row['lat']) || empty($row['lon'])) continue;
+        $addr = $row['address'] ?? [];
+        $resolvedCity = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? $addr['state'] ?? $city;
+        $shortLoc = trim(implode(' ', array_filter([
+            $addr['road'] ?? '',
+            $addr['house_number'] ?? '',
+        ]))) ?: (string)($row['display_name'] ?? '');
+        $out[] = [
+            'display_name' => (string)($row['display_name'] ?? ''),
+            'lat'          => (float)$row['lat'],
+            'lng'          => (float)$row['lon'],
+            'city'         => (string)$resolvedCity,
+            'location'     => $street !== '' ? $street : $shortLoc,
+        ];
+    }
+    return $out;
+}
+
+function reverseGeocode(float $lat, float $lng): ?array {
+    $rows = nominatimGet('reverse', [
+        'lat'             => $lat,
+        'lon'             => $lng,
+        'addressdetails'  => 1,
+    ]);
+    if (empty($rows['lat']) || empty($rows['lon'])) return null;
+    $addr = $rows['address'] ?? [];
+    $city = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? $addr['state'] ?? '';
+    return [
+        'display_name' => (string)($rows['display_name'] ?? ''),
+        'lat'          => (float)$rows['lat'],
+        'lng'          => (float)$rows['lon'],
+        'city'         => (string)$city,
+        'location'     => (string)($rows['display_name'] ?? ''),
+    ];
 }
 
 function eventCreatorName(PDO $pdo, int $userId, string $creatorType, string $fallback): string {
@@ -218,6 +329,10 @@ function normalizeEvent(array $event): array {
     // Is event full?
     $event['is_full'] = $event['max_participants']
         && $event['participants_count'] >= $event['max_participants'];
+    $coords = parseEventCoords($event['latitude'] ?? null, $event['longitude'] ?? null);
+    $event['latitude']  = $coords ? $coords['lat'] : null;
+    $event['longitude'] = $coords ? $coords['lng'] : null;
+    $event['has_map']   = (bool)$coords;
     return $event;
 }
 
@@ -321,7 +436,7 @@ function loadEventList(PDO $pdo, int $userId, array $filters): array {
 try {
     ensureEventsSchema($pdo);
     if (!eventsTableExists($pdo, 'events')) {
-        eventsJson(['error' => 'Модуль мероприятий не установлен. Запусти events_migration.sql в phpMyAdmin'], 500);
+        eventsJson(['error' => 'Модуль мероприятий не установлен. Запусти sql/10_upgrade_existing.sql'], 500);
     }
 
     $method = $_SERVER['REQUEST_METHOD'];
@@ -330,6 +445,24 @@ try {
     /* ════ GET ═══════════════════════════════════════════════════ */
     if ($method === 'GET') {
         $userId = verifyTokenSoft();
+
+        // Geocode proxy (Nominatim)
+        if ($action === 'geocode') {
+            $q      = trim($_GET['q'] ?? '');
+            $city   = trim($_GET['city'] ?? '');
+            $street = trim($_GET['street'] ?? '');
+            if ($q === '' && $city === '' && $street === '') {
+                eventsJson(['results' => []]);
+            }
+            eventsJson(['results' => geocodeAddress($q, $city, $street)]);
+        }
+        if ($action === 'reverse') {
+            $coords = parseEventCoords($_GET['lat'] ?? null, $_GET['lon'] ?? null);
+            if (!$coords) eventsJson(['error' => 'Некорректные координаты'], 400);
+            $result = reverseGeocode($coords['lat'], $coords['lng']);
+            if (!$result) eventsJson(['error' => 'Адрес не найден для этой точки'], 404);
+            eventsJson(['result' => $result]);
+        }
 
         // Preferences
         if ($action === 'preferences') {
@@ -549,11 +682,16 @@ try {
         $visibility    = in_array($rawVisibility, ['public', 'private'], true) ? $rawVisibility : 'public';
         $cover       = trim((string)($data['cover_image']  ?? ''));
         $tags        = array_values(array_unique(array_filter(array_map('trim', (array)($data['tags'] ?? [])))));
+        $coords      = parseEventCoords($data['latitude'] ?? null, $data['longitude'] ?? null);
 
         if (!$title || !$description || !$start || !in_array($format, ['online','offline'], true))
             eventsJson(['error' => 'Заполни название, описание, формат и дату начала'], 400);
-        if ($format === 'offline' && (!$city || !$location))
-            eventsJson(['error' => 'Для офлайн события нужны город и адрес'], 400);
+        if ($format === 'offline') {
+            if (!$city || !$location)
+                eventsJson(['error' => 'Для офлайн события нужны город и адрес'], 400);
+            if (!$coords)
+                eventsJson(['error' => 'Укажите корректный адрес на карте — точка не подтверждена'], 400);
+        }
         if ($format === 'online' && !$meetingLink)
             eventsJson(['error' => 'Для онлайн события нужна ссылка'], 400);
         if ($max !== null && $max < 1)
@@ -569,9 +707,9 @@ try {
         $stmt = $pdo->prepare("
             INSERT INTO events
                 (title, description, cover_image, creator_id, creator_type, event_format,
-                 city, location, meeting_link, category, max_participants,
+                 city, location, latitude, longitude, meeting_link, category, max_participants,
                  start_datetime, end_datetime, visibility)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             mb_substr($title, 0, 180),
@@ -582,6 +720,8 @@ try {
             $format,
             $city        ?: null,
             $location    ?: null,
+            $coords ? $coords['lat'] : null,
+            $coords ? $coords['lng'] : null,
             $meetingLink ?: null,
             mb_substr($category ?: 'Другое', 0, 80),
             $max,

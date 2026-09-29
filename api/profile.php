@@ -35,17 +35,104 @@ function getAuthUser($pdo) {
     $token = function_exists('getBearerToken') ? getBearerToken() : null;
     if (!$token) return null;
     try {
+        $activeSql = function_exists('userIsActiveSql') ? userIsActiveSql('u') : '1=1';
         $st = $pdo->prepare("
             SELECT u.id
             FROM sessions s
             JOIN users u ON u.id = s.user_id
-            WHERE s.token = ? AND s.expires_at > NOW()
+            WHERE s.token = ? AND s.expires_at > NOW() AND {$activeSql}
             LIMIT 1
         ");
         $st->execute([$token]);
         $u = $st->fetch(PDO::FETCH_ASSOC);
         return $u ?: null;
     } catch (Exception $e) { return null; }
+}
+
+function profileTableExists(PDO $pdo, string $table): bool
+{
+    try {
+        $st = $pdo->prepare(
+            'SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? LIMIT 1'
+        );
+        $st->execute([$table]);
+        return (bool)$st->fetchColumn();
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+function profileResolveUniversityJoin(PDO $pdo): array
+{
+    $cols = profileUserColumns($pdo);
+    if (profileTableExists($pdo, 'university_profiles') && in_array('university_id', $cols, true)) {
+        return [
+            'join'  => 'LEFT JOIN university_profiles un ON un.id = u.university_id',
+            'name'  => 'un.university_name',
+        ];
+    }
+    return [
+        'join'  => '',
+        'name'  => 'NULL AS university_name',
+    ];
+}
+
+/** @return string[] */
+function profileUserColumns(PDO $pdo, bool $refresh = false): array
+{
+    static $cache = null;
+    if ($refresh) {
+        $cache = null;
+    }
+    if ($cache !== null) {
+        return $cache;
+    }
+    try {
+        $cache = $pdo->query("
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+        ")->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {
+        $cache = [];
+    }
+    return $cache;
+}
+
+/** Ensure extended profile columns on users; returns current column names. */
+function profileEnsureUserProfileColumns(PDO $pdo): array
+{
+    $extCols = [
+        'university_id' => 'INT NULL DEFAULT NULL',
+        'organization'  => 'VARCHAR(200) NULL',
+        'cover_image'   => 'VARCHAR(500) NULL',
+        'specialty'     => 'VARCHAR(200) NULL',
+        'education'     => 'VARCHAR(100) NULL',
+        'country'       => 'VARCHAR(100) NULL',
+        'city'          => 'VARCHAR(120) NULL',
+        'bio'           => 'TEXT NULL',
+        'interest1'     => 'VARCHAR(100) NULL',
+        'interest2'     => 'VARCHAR(100) NULL',
+        'interest3'     => 'VARCHAR(100) NULL',
+    ];
+    try {
+        $existingCols = profileUserColumns($pdo);
+        foreach ($extCols as $col => $def) {
+            if (!in_array($col, $existingCols, true)) {
+                $pdo->exec("ALTER TABLE users ADD COLUMN `{$col}` {$def}");
+            }
+        }
+        $existingCols = profileUserColumns($pdo, true);
+        if (in_array('university_id', $existingCols, true)) {
+            try {
+                $idx = $pdo->query("SHOW INDEX FROM users WHERE Key_name = 'idx_users_university_id'")->fetch();
+                if (!$idx) {
+                    $pdo->exec('ALTER TABLE users ADD INDEX idx_users_university_id (university_id)');
+                }
+            } catch (Throwable $e) {}
+        }
+    } catch (Throwable $e) {}
+    return profileUserColumns($pdo, true);
 }
 
 if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'PUT'], true)) {
@@ -58,10 +145,12 @@ $myId = $me ? (int)$me['id'] : 0;
 if (function_exists('ensureFriendshipsSchema')) {
     ensureFriendshipsSchema();
 }
+if (function_exists('ensureUserAccountSchema')) {
+    ensureUserAccountSchema();
+}
 
 /* ──────────────────────────────────────────────────────────────
-   PUT /profile.php — обновление своего профиля
-   Body: { "university_id": 12|null, "organization": "..."|null }
+   PUT /profile.php — action: change_password | delete_account
    ────────────────────────────────────────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     if (!$myId) jsonOut(['error' => 'Unauthorized'], 401);
@@ -69,6 +158,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $input = json_decode(file_get_contents('php://input'), true);
     if (!is_array($input)) jsonOut(['error' => 'Invalid JSON body'], 400);
 
+    $action = trim((string)($input['action'] ?? ''));
+
+    if ($action === 'change_password') {
+        $current = (string)($input['current_password'] ?? '');
+        $newPass = (string)($input['new_password'] ?? '');
+        $confirm = (string)($input['confirm_password'] ?? '');
+
+        if ($current === '' || $newPass === '' || $confirm === '') {
+            jsonOut(['error' => 'Заполните все поля пароля'], 422);
+        }
+        if (strlen($newPass) < 8) {
+            jsonOut(['error' => 'Новый пароль: минимум 8 символов'], 422);
+        }
+        if ($newPass !== $confirm) {
+            jsonOut(['error' => 'Новый пароль и подтверждение не совпадают'], 422);
+        }
+        if ($current === $newPass) {
+            jsonOut(['error' => 'Новый пароль должен отличаться от текущего'], 422);
+        }
+
+        try {
+            $st = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+            $st->execute([$myId]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if (!$row || !password_verify($current, $row['password_hash'])) {
+                jsonOut(['error' => 'Неверный текущий пароль'], 403);
+            }
+            $hash = password_hash($newPass, PASSWORD_DEFAULT);
+            $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([$hash, $myId]);
+            jsonOut(['success' => true, 'message' => 'Пароль обновлён']);
+        } catch (Exception $e) {
+            jsonOut(['error' => 'DB error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    if ($action === 'delete_account') {
+        $password    = (string)($input['password'] ?? '');
+        $confirmName = trim((string)($input['confirm_name'] ?? ''));
+
+        if ($password === '' || $confirmName === '') {
+            jsonOut(['error' => 'Введите пароль и имя для подтверждения'], 422);
+        }
+
+        try {
+            $st = $pdo->prepare('SELECT password_hash, email, first_name, last_name, is_deleted FROM users WHERE id = ? LIMIT 1');
+            $st->execute([$myId]);
+            $user = $st->fetch(PDO::FETCH_ASSOC);
+            if (!$user) jsonOut(['error' => 'User not found'], 404);
+            if (!empty($user['is_deleted'])) {
+                jsonOut(['error' => 'Аккаунт уже удалён'], 410);
+            }
+            if (!password_verify($password, $user['password_hash'])) {
+                jsonOut(['error' => 'Неверный пароль'], 403);
+            }
+
+            $fullName = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+            $norm = static function ($s) {
+                return mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string)$s)));
+            };
+            $okName = $norm($confirmName) === $norm($fullName)
+                || ($user['first_name'] && $norm($confirmName) === $norm($user['first_name']));
+            if (!$okName) {
+                jsonOut(['error' => 'Имя не совпадает с профилем'], 422);
+            }
+
+            $anonEmail = 'deleted+' . $myId . '+' . bin2hex(random_bytes(4)) . '@deleted.mendflow.local';
+            $deadHash  = password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT);
+
+            $userCols = tableColumns('users');
+            $sets = [
+                'is_deleted = 1',
+                'deleted_at = NOW()',
+                'email = ?',
+                'first_name = ?',
+                'last_name = ?',
+                'password_hash = ?',
+            ];
+            $params = [$anonEmail, 'Удалённый', 'пользователь', $deadHash];
+            foreach (['bio', 'avatar', 'cover_image'] as $col) {
+                if (in_array($col, $userCols, true)) {
+                    $sets[] = "{$col} = NULL";
+                }
+            }
+            $params[] = $myId;
+
+            $pdo->beginTransaction();
+            $pdo->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+            $pdo->prepare('DELETE FROM sessions WHERE user_id = ?')->execute([$myId]);
+            $pdo->commit();
+
+            jsonOut(['success' => true, 'message' => 'Аккаунт удалён']);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            jsonOut(['error' => 'DB error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    if ($action !== '') {
+        jsonOut(['error' => 'Unknown action'], 400);
+    }
+
+    /* ── обновление полей профиля ── */
     $hasUniversityId = array_key_exists('university_id', $input);
     $hasOrganization = array_key_exists('organization', $input);
     $hasCoverImage   = array_key_exists('cover_image', $input);
@@ -82,42 +273,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $hasInterest3    = array_key_exists('interest3',   $input);
 
     // Safe migration: add extended profile columns if missing
-    $extCols = [
-        'cover_image' => "VARCHAR(500) NULL",
-        'specialty'   => "VARCHAR(200) NULL",
-        'education'   => "VARCHAR(100) NULL",
-        'country'     => "VARCHAR(100) NULL",
-        'city'        => "VARCHAR(120) NULL",
-        'bio'         => "TEXT NULL",
-        'interest1'   => "VARCHAR(100) NULL",
-        'interest2'   => "VARCHAR(100) NULL",
-        'interest3'   => "VARCHAR(100) NULL",
-    ];
-    try {
-        $existingCols = $pdo->query("
-            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
-        ")->fetchAll(PDO::FETCH_COLUMN);
-        foreach ($extCols as $col => $def) {
-            if (!in_array($col, $existingCols)) {
-                $pdo->exec("ALTER TABLE users ADD COLUMN `{$col}` {$def}");
-            }
-        }
-    } catch (Throwable $e) {}
+    $userCols = profileEnsureUserProfileColumns($pdo);
 
     $universityId = null;
     if ($hasUniversityId && $input['university_id'] !== null && $input['university_id'] !== '') {
         $universityId = (int)$input['university_id'];
-        try {
-            $check = $pdo->prepare("SELECT id FROM university_profiles WHERE id = ? LIMIT 1");
-            $check->execute([$universityId]);
-            if (!$check->fetch()) {
-                $check2 = $pdo->prepare("SELECT id FROM universities WHERE id = ? LIMIT 1");
-                $check2->execute([$universityId]);
-                if (!$check2->fetch()) jsonOut(['error' => 'university_id не найден'], 422);
+        if ($universityId > 0 && profileTableExists($pdo, 'university_profiles')) {
+            try {
+                $check = $pdo->prepare('SELECT id FROM university_profiles WHERE id = ? LIMIT 1');
+                $check->execute([$universityId]);
+                if (!$check->fetch()) {
+                    jsonOut(['error' => 'university_id не найден'], 422);
+                }
+            } catch (Exception $e) {
+                jsonOut(['error' => 'DB error: ' . $e->getMessage()], 500);
             }
-        } catch (Exception $e) {
-            jsonOut(['error' => 'DB error: ' . $e->getMessage()], 500);
         }
     }
 
@@ -137,17 +307,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 
     $sets = [];
     $params = [];
-    if ($hasUniversityId) { $sets[] = 'university_id = ?'; $params[] = $universityId; }
-    if ($hasOrganization) { $sets[] = 'organization = ?';  $params[] = $organization; }
-    if ($hasCoverImage)   { $sets[] = 'cover_image = ?';   $params[] = $coverImage; }
-    if ($hasSpecialty)    { $sets[] = 'specialty = ?';     $params[] = $strOrNull($input['specialty']); }
-    if ($hasEducation)    { $sets[] = 'education = ?';     $params[] = $strOrNull($input['education']); }
-    if ($hasCountry)      { $sets[] = 'country = ?';       $params[] = $strOrNull($input['country']); }
-    if ($hasCity)         { $sets[] = 'city = ?';          $params[] = $strOrNull($input['city']); }
-    if ($hasBio)          { $sets[] = 'bio = ?';           $params[] = $strOrNull($input['bio']); }
-    if ($hasInterest1)    { $sets[] = 'interest1 = ?';     $params[] = $strOrNull($input['interest1']); }
-    if ($hasInterest2)    { $sets[] = 'interest2 = ?';     $params[] = $strOrNull($input['interest2']); }
-    if ($hasInterest3)    { $sets[] = 'interest3 = ?';     $params[] = $strOrNull($input['interest3']); }
+    if ($hasUniversityId && in_array('university_id', $userCols, true)) {
+        $sets[] = 'university_id = ?';
+        $params[] = $universityId;
+    }
+    if ($hasOrganization && in_array('organization', $userCols, true)) {
+        $sets[] = 'organization = ?';
+        $params[] = $organization;
+    }
+    if ($hasCoverImage && in_array('cover_image', $userCols, true)) {
+        $sets[] = 'cover_image = ?';
+        $params[] = $coverImage;
+    }
+    if ($hasSpecialty && in_array('specialty', $userCols, true)) {
+        $sets[] = 'specialty = ?';
+        $params[] = $strOrNull($input['specialty']);
+    }
+    if ($hasEducation && in_array('education', $userCols, true)) {
+        $sets[] = 'education = ?';
+        $params[] = $strOrNull($input['education']);
+    }
+    if ($hasCountry && in_array('country', $userCols, true)) {
+        $sets[] = 'country = ?';
+        $params[] = $strOrNull($input['country']);
+    }
+    if ($hasCity && in_array('city', $userCols, true)) {
+        $sets[] = 'city = ?';
+        $params[] = $strOrNull($input['city']);
+    }
+    if ($hasBio && in_array('bio', $userCols, true)) {
+        $sets[] = 'bio = ?';
+        $params[] = $strOrNull($input['bio']);
+    }
+    if ($hasInterest1 && in_array('interest1', $userCols, true)) {
+        $sets[] = 'interest1 = ?';
+        $params[] = $strOrNull($input['interest1']);
+    }
+    if ($hasInterest2 && in_array('interest2', $userCols, true)) {
+        $sets[] = 'interest2 = ?';
+        $params[] = $strOrNull($input['interest2']);
+    }
+    if ($hasInterest3 && in_array('interest3', $userCols, true)) {
+        $sets[] = 'interest3 = ?';
+        $params[] = $strOrNull($input['interest3']);
+    }
 
     try {
         if ($sets) {
@@ -159,7 +362,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 
         // ── Уведомление вузу о новом студенте ──────────────────────────
         // Срабатывает только если university_id реально изменился (привязка).
-        if ($hasUniversityId && $universityId !== null) {
+        if ($hasUniversityId && $universityId !== null && in_array('university_id', $userCols, true)) {
             try {
                 // Проверяем предыдущий university_id студента
                 $stPrev = $pdo->prepare("SELECT university_id FROM users WHERE id = ? LIMIT 1");
@@ -198,26 +401,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         }
 
         // Detect which extended columns exist for safe SELECT
-        $putAllCols = [];
-        try {
-            $putAllCols = $pdo->query("
-                SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
-            ")->fetchAll(PDO::FETCH_COLUMN);
-        } catch (Throwable $e) {}
+        $putAllCols = profileEnsureUserProfileColumns($pdo);
 
         $safeCol = function($col) use ($putAllCols) {
-            return in_array($col, $putAllCols) ? ", u.`{$col}`" : '';
+            return in_array($col, $putAllCols, true) ? ", u.`{$col}`" : '';
         };
-        $extSel = $safeCol('cover_image') . $safeCol('specialty') . $safeCol('education')
+        $extSel = $safeCol('university_id') . $safeCol('organization')
+                . $safeCol('cover_image') . $safeCol('specialty') . $safeCol('education')
                 . $safeCol('country')     . $safeCol('city')      . $safeCol('bio')
                 . $safeCol('interest1')   . $safeCol('interest2') . $safeCol('interest3');
 
+        $uni = profileResolveUniversityJoin($pdo);
         $st = $pdo->prepare("
             SELECT u.id, u.first_name, u.last_name, u.email, u.avatar, u.is_verified,
-                   u.university_id, u.organization, un.university_name{$extSel}
+                   {$uni['name']}{$extSel}
             FROM users u
-            LEFT JOIN universities un ON un.id = u.university_id
+            {$uni['join']}
             WHERE u.id = ? LIMIT 1
         ");
         $st->execute([$myId]);
@@ -232,8 +431,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
             'avatar'          => normalizeMediaUrl($user['avatar'] ?? null),
             'cover_image'     => normalizeMediaUrl($user['cover_image'] ?? null),
             'is_verified'     => (bool)$user['is_verified'],
-            'university_id'   => $user['university_id'] !== null ? (int)$user['university_id'] : null,
-            'organization'    => $user['organization'],
+            'university_id'   => isset($user['university_id']) && $user['university_id'] !== null
+                ? (int)$user['university_id'] : null,
+            'organization'    => $user['organization'] ?? null,
             'university_name' => $user['university_name'],
             'specialty'       => $user['specialty']   ?? null,
             'education'       => $user['education']   ?? null,
@@ -368,10 +568,10 @@ try {
     $gSafeCol = function($col) use ($getAllCols) {
         return in_array($col, $getAllCols) ? ", `{$col}`" : '';
     };
-    $gExtSel = $gSafeCol('cover_image') . $gSafeCol('specialty') . $gSafeCol('education')
+    $gExtSel = $gSafeCol('university_id') . $gSafeCol('cover_image') . $gSafeCol('specialty') . $gSafeCol('education')
              . $gSafeCol('country')     . $gSafeCol('city')      . $gSafeCol('bio')
              . $gSafeCol('interest1')   . $gSafeCol('interest2') . $gSafeCol('interest3')
-             . $gSafeCol('organization');
+             . $gSafeCol('organization') . $gSafeCol('is_deleted');
 
     $st = $pdo->prepare("
         SELECT id, first_name, last_name, email, avatar, created_at, is_verified{$gExtSel}
@@ -380,6 +580,28 @@ try {
     $st->execute([$targetId]);
     $user = $st->fetch(PDO::FETCH_ASSOC);
     if (!$user) jsonOut(['error' => 'User not found'], 404);
+
+    if (!empty($user['is_deleted'])) {
+        jsonOut([
+            'user' => [
+                'id'         => (int)$user['id'],
+                'first_name' => 'Удалённый',
+                'last_name'  => 'пользователь',
+                'email'      => null,
+                'avatar'     => null,
+                'is_deleted' => true,
+                'bio'        => null,
+            ],
+            'posts_count'       => 0,
+            'friends_count'     => 0,
+            'friendship_status' => 'none',
+            'recent_posts'      => [],
+        ]);
+    }
+
+    if ($myId && $myId !== $targetId && mfEitherBlocked($pdo, $myId, $targetId)) {
+        jsonOut(['error' => 'Profile unavailable', 'blocked' => true], 403);
+    }
 
     /* ── 2. Posts count ── */
     $postsCount = 0;

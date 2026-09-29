@@ -21,6 +21,9 @@ function frRecTableExists(PDO $pdo, string $table): bool
 function frRecExcludeIds(PDO $pdo, int $userId): array
 {
     $exclude = array_merge([$userId], frGetFriendIds($pdo, $userId));
+    if (function_exists('mfBlockedUserIds')) {
+        $exclude = array_merge($exclude, mfBlockedUserIds($pdo, $userId));
+    }
     try {
         $st = $pdo->prepare('SELECT to_id FROM friend_requests WHERE from_id = ? AND status = "pending"');
         $st->execute([$userId]);

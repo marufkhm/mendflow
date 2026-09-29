@@ -9,6 +9,7 @@ require_once 'db.php';
 require_once __DIR__ . '/feed_ranking.php';
 $currentUserId = verifyToken();
 global $pdo;
+ensureBlocksSchema();
 
 // ── Авто-создание таблицы messages если нет ──────────────────────
 $pdo->exec("
@@ -33,6 +34,11 @@ $method = $_SERVER['REQUEST_METHOD'];
 // ═══════════════════════════════════════════════════════════════════
 if ($method === 'GET' && isset($_GET['conversations'])) {
 
+    $blocked = mfBlockedUserIds($pdo, $currentUserId);
+    $blockSql = $blocked
+        ? ' AND u.id NOT IN (' . implode(',', array_map('intval', $blocked)) . ')'
+        : '';
+
     $stmt = $pdo->prepare("
         SELECT
             u.id,
@@ -55,7 +61,7 @@ if ($method === 'GET' && isset($_GET['conversations'])) {
             ORDER BY created_at DESC
             LIMIT 1
         )
-        WHERE u.id != :me4
+        WHERE u.id != :me4{$blockSql}
         ORDER BY m.created_at DESC
         LIMIT 50
     ");
@@ -90,6 +96,12 @@ if ($method === 'GET' && isset($_GET['with'])) {
     if (!$withId) {
         http_response_code(400);
         echo json_encode(['error' => 'Missing with']);
+        exit;
+    }
+
+    if (mfEitherBlocked($pdo, $currentUserId, $withId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Переписка недоступна']);
         exit;
     }
 
@@ -156,6 +168,18 @@ if ($method === 'POST') {
     if (mb_strlen($content) > 5000) {
         http_response_code(400);
         echo json_encode(['error' => 'Сообщение слишком длинное (макс. 5000 символов)']);
+        exit;
+    }
+
+    if (mfEitherBlocked($pdo, $currentUserId, $toId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Нельзя отправить сообщение этому пользователю']);
+        exit;
+    }
+
+    if (!mfAreFriends($pdo, $currentUserId, $toId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Сообщения доступны только друзьям. Добавьте пользователя в друзья.']);
         exit;
     }
 

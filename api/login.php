@@ -4,6 +4,7 @@ error_reporting(0);
 ini_set('display_errors', 0);
 require_once 'db.php';
 require_once 'auth_email.php';
+require_once 'moderation_lib.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -33,11 +34,22 @@ try {
 
     ensureAuthEmailSchema($pdo);
     ensureSessionsSchema($pdo);
+    ensureUserAccountSchema();
+    ensurePlatformBanSchema();
 
     $userCols   = tableColumns('users');
     $selectCols = ['id', 'first_name', 'last_name', 'password_hash'];
     if (in_array('email_verified_at', $userCols, true)) {
         $selectCols[] = 'email_verified_at';
+    }
+    if (in_array('is_deleted', $userCols, true)) {
+        $selectCols[] = 'is_deleted';
+    }
+    if (in_array('is_banned', $userCols, true)) {
+        $selectCols[] = 'is_banned';
+    }
+    if (in_array('ban_reason', $userCols, true)) {
+        $selectCols[] = 'ban_reason';
     }
 
     $stmt = $pdo->prepare('SELECT ' . implode(', ', $selectCols) . ' FROM users WHERE email = ? LIMIT 1');
@@ -47,6 +59,22 @@ try {
     if (!$user || !password_verify($password, $user['password_hash'])) {
         http_response_code(401);
         echo json_encode(['error' => 'Неверный email или пароль']);
+        exit;
+    }
+
+    if (!empty($user['is_deleted'])) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Аккаунт удалён. Восстановление через поддержку недоступно из интерфейса.']);
+        exit;
+    }
+
+    if (in_array('is_banned', $userCols, true) && !empty($user['is_banned'])) {
+        http_response_code(403);
+        $banMsg = 'Аккаунт заблокирован администрацией платформы.';
+        if (!empty($user['ban_reason'])) {
+            $banMsg .= ' Причина: ' . $user['ban_reason'];
+        }
+        echo json_encode(['error' => $banMsg, 'banned' => true]);
         exit;
     }
 

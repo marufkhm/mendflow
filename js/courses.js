@@ -7,6 +7,10 @@
 
   const CRS_CATEGORIES = ['Дизайн', 'Код', 'Бизнес', 'Маркетинг', 'AI', 'Образование', 'Другое'];
   const CRS_LEVELS = { beginner: 'Начинающий', intermediate: 'Средний', advanced: 'Продвинутый' };
+  const CRS_CAT_SLUG = {
+    'Дизайн': 'design', 'Код': 'code', 'Бизнес': 'business', 'Маркетинг': 'marketing',
+    'AI': 'ai', 'Образование': 'edu', 'Другое': 'other',
+  };
   const LESSON_TEMPLATE = '## Зачем это нужно\n\n\n## Объяснение\n\n\n## Пример\n\n';
 
   const crsState = {
@@ -358,6 +362,48 @@
   }
 
   /* ── Cards & list ── */
+  function crsCategorySlug(cat) {
+    return CRS_CAT_SLUG[cat] || 'other';
+  }
+
+  function crsUpdateCatalogStats(courses) {
+    const list = courses || [];
+    const totalEl = $('crsStatTotal');
+    const studentsEl = $('crsStatStudents');
+    const ratingEl = $('crsStatRating');
+    if (totalEl) totalEl.textContent = String(list.length);
+    if (studentsEl) {
+      const sum = list.reduce((a, c) => a + (c.enrollments_count || 0), 0);
+      studentsEl.textContent = sum >= 1000 ? `${(sum / 1000).toFixed(1)}k` : String(sum);
+    }
+    if (ratingEl) {
+      const rated = list.filter(c => (c.rating_avg || 0) > 0);
+      const avg = rated.length ? rated.reduce((a, c) => a + c.rating_avg, 0) / rated.length : 0;
+      ratingEl.textContent = avg > 0 ? avg.toFixed(1) : '—';
+    }
+  }
+
+  function crsEmptyStateHtml({ iconId, variant, title, hint, btnId, btnLabel }) {
+    const mod = variant || iconId || 'book';
+    return `
+      <div class="crs-empty-state crs-drafts-empty">
+        <div class="crs-empty-state-icon crs-empty-state-icon--${esc(mod)}" aria-hidden="true">
+          <div class="crs-empty-state-icon-ring"></div>
+          <div class="crs-empty-state-icon-orb crs-empty-state-icon-orb--a"></div>
+          <div class="crs-empty-state-icon-orb crs-empty-state-icon-orb--b"></div>
+          <span class="crs-empty-state-icon-glyph" data-mf-ico="${esc(iconId || 'book')}" data-mf-ico-size="44"></span>
+        </div>
+        <h3>${title}</h3>
+        <p class="crs-drafts-hint">${hint}</p>
+        ${btnId ? `<button class="primary-button crs-catalog-create" id="${btnId}" type="button">${btnLabel}</button>` : ''}
+      </div>`;
+  }
+
+  function crsAttachGridIcons(grid) {
+    if (!grid) return;
+    window.MF_EMOJI?.attachIcons?.(grid);
+  }
+
   function crsRenderCard(c, options = {}) {
     const isAuthor = crsIsCourseAuthor(c);
     const showActions = options.showActions !== false && (options.showActions === true || isAuthor);
@@ -366,15 +412,25 @@
     card.dataset.id = c.id;
     const cover = c.cover_image
       ? `<img src="${esc(crsMediaUrl(c.cover_image))}" alt="" class="mf-course-cover-img">`
-      : `<div class="mf-course-cover-placeholder">📚</div>`;
+      : `<div class="mf-course-cover-placeholder"><span class="mf-course-cover-ph-ico" data-mf-ico="book" data-mf-ico-size="48"></span></div>`;
     const av = c.author?.avatar
       ? `<img src="${esc(crsMediaUrl(c.author.avatar))}" alt="">`
       : esc((c.author?.name || 'A')[0]);
     const statusBadge = c.status === 'draft'
       ? '<span class="mf-course-draft-badge">Черновик</span>'
       : (showActions || crsState.tab === 'my' ? '<span class="mf-course-published-badge">Опубликован</span>' : '');
+    const catSlug = crsCategorySlug(c.category);
+    const catPill = c.category
+      ? `<span class="mf-course-cat-pill mf-course-cat--${catSlug}">${esc(c.category)}</span>`
+      : '';
     card.innerHTML = `
-      <div class="mf-course-cover">${cover}</div>
+      <div class="mf-course-card-glow" aria-hidden="true"></div>
+      <div class="mf-course-card-accent" aria-hidden="true"></div>
+      <div class="mf-course-cover">
+        ${catPill}
+        ${cover}
+        <div class="mf-course-cover-shimmer" aria-hidden="true"></div>
+      </div>
       <div class="mf-course-body">
         <div class="mf-course-meta-row">
           <span class="mf-course-level">${esc(c.level_label || CRS_LEVELS[c.level] || '')}</span>
@@ -427,15 +483,21 @@
         ? window.resolveAuthToken()
         : localStorage.getItem('mendflow_token');
       if (!token) {
-        grid.innerHTML = `
-          <div class="crs-drafts-empty">
-            <p class="crs-empty">Войдите в аккаунт, чтобы видеть ${crsState.tab === 'drafts' ? 'черновики' : 'свои курсы'}</p>
-          </div>`;
+        grid.innerHTML = crsEmptyStateHtml({
+          iconId: 'people',
+          variant: 'auth',
+          title: 'Войдите в аккаунт',
+          hint: crsState.tab === 'drafts'
+            ? 'Черновики курсов доступны после входа'
+            : 'Создавайте и управляйте своими курсами после входа',
+        });
+        crsAttachGridIcons(grid);
+        crsUpdateCatalogStats([]);
         return;
       }
     }
 
-    grid.innerHTML = '<p class="crs-loading">Загрузка...</p>';
+    grid.innerHTML = '<div class="crs-loading crs-loading--hero"><div class="crs-loading-pulse" aria-hidden="true"></div><p>Загрузка каталога…</p></div>';
     try {
       const q = $('crsSearchInput')?.value?.trim() || '';
       const tag = $('crsTagInput')?.value?.trim() || '';
@@ -448,32 +510,56 @@
       if (level) params.set('level', level);
       const d = await api('/courses.php?' + params);
       crsState.courses = d.courses || [];
+      crsUpdateCatalogStats(crsState.courses);
       grid.innerHTML = '';
       if (!crsState.courses.length) {
         if (crsState.tab === 'drafts') {
-          grid.innerHTML = `
-            <div class="crs-drafts-empty">
-              <p class="crs-empty">Черновиков пока нет</p>
-              <p class="crs-drafts-hint">Создайте курс — он сохранится как черновик, пока вы не опубликуете его</p>
-              <button class="primary-button" id="crsDraftsCreateBtn" type="button">+ Создать курс</button>
-            </div>`;
+          grid.innerHTML = crsEmptyStateHtml({
+            iconId: 'memo',
+            variant: 'memo',
+            title: 'Черновиков пока нет',
+            hint: 'Создайте курс — он сохранится как черновик, пока вы не опубликуете его',
+            btnId: 'crsDraftsCreateBtn',
+            btnLabel: '+ Создать курс',
+          });
+          crsAttachGridIcons(grid);
           $('crsDraftsCreateBtn')?.addEventListener('click', () => crsOpenCreateModal());
         } else if (crsState.tab === 'my') {
-          grid.innerHTML = `
-            <div class="crs-drafts-empty">
-              <p class="crs-empty">У вас пока нет курсов</p>
-              <p class="crs-drafts-hint">Создайте первый курс — черновики и опубликованные курсы появятся здесь</p>
-              <button class="primary-button" id="crsMyCreateBtn" type="button">+ Создать курс</button>
-            </div>`;
+          grid.innerHTML = crsEmptyStateHtml({
+            iconId: 'rocket',
+            variant: 'rocket',
+            title: 'У вас пока нет курсов',
+            hint: 'Создайте первый курс — черновики и опубликованные курсы появятся здесь',
+            btnId: 'crsMyCreateBtn',
+            btnLabel: '+ Создать курс',
+          });
+          crsAttachGridIcons(grid);
           $('crsMyCreateBtn')?.addEventListener('click', () => crsOpenCreateModal());
         } else {
-          grid.innerHTML = '<p class="crs-empty">Курсов пока нет</p>';
+          grid.innerHTML = crsEmptyStateHtml({
+            iconId: 'book',
+            variant: 'book',
+            title: 'Курсов пока нет',
+            hint: 'Станьте первым — создайте курс и поделитесь знаниями с сообществом',
+            btnId: 'crsEmptyCreateBtn',
+            btnLabel: '+ Создать курс',
+          });
+          crsAttachGridIcons(grid);
+          $('crsEmptyCreateBtn')?.addEventListener('click', () => crsOpenCreateModal());
         }
         return;
       }
       crsState.courses.forEach(c => grid.appendChild(crsRenderCard(c)));
+      crsAttachGridIcons(grid);
     } catch (e) {
-      grid.innerHTML = `<p class="crs-empty">Ошибка: ${esc(e.message)}</p>`;
+      crsUpdateCatalogStats([]);
+      grid.innerHTML = crsEmptyStateHtml({
+        iconId: 'alarm',
+        variant: 'error',
+        title: 'Не удалось загрузить',
+        hint: esc(e.message || 'Попробуйте обновить страницу'),
+      });
+      crsAttachGridIcons(grid);
     }
   }
 

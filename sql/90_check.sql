@@ -2,13 +2,13 @@
 -- Mendflow — полная проверка БД (таблицы, колонки, строки)
 --
 -- DBeaver: открыть файл → Ctrl+A → Execute (Alt+X) — только SELECT, безопасно.
--- Сервер:  mysql -u mendflow -p mendflow < check_database.sql
+-- Сервер:  mysql -u mendflow -p mendflow < sql/90_check.sql
 -- Mac:     ./db-check.sh
 --
 -- Результат:
 --   ✓ OK      — всё на месте
 --   ! WARN    — не критично, но стоит знать
---   ✗ MISSING — нужно исправить (миграция / mendflow_schema.sql)
+--   ✗ MISSING — sql/00_schema.sql (новая БД) или sql/10_upgrade_existing.sql
 -- ============================================================================
 
 SET NAMES utf8mb4;
@@ -126,7 +126,7 @@ SELECT '── 4b. Устаревшая схема friendships (должно б�
 
 SELECT
   c.COLUMN_NAME AS old_column,
-  'WARN — запустите migration_friendships.sql' AS action
+  'WARN — запустите sql/20_friendships.sql' AS action
 FROM INFORMATION_SCHEMA.COLUMNS c
 WHERE c.TABLE_SCHEMA = DATABASE()
   AND c.TABLE_NAME = 'friendships'
@@ -156,7 +156,7 @@ SELECT 'friendships' AS entity,
   IF(
     EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='friendships' AND COLUMN_NAME='status'),
     '(см. SELECT COUNT(*) FROM friendships WHERE status=''accepted'')',
-    'SKIP — сначала migration_friendships.sql'
+    'SKIP — сначала sql/20_friendships.sql'
   ) AS total;
 
 SELECT 'friend_requests (pending)' AS entity, COUNT(*) AS total
@@ -195,10 +195,10 @@ SELECT '── 7. ИТОГ ──' AS '';
 
 SELECT
   CASE
-    WHEN missing_tables > 0 THEN CONCAT('✗ Нет ', missing_tables, ' обязательных таблиц — импортируйте mendflow_schema.sql')
-    WHEN missing_cols > 0 THEN CONCAT('✗ Нет ', missing_cols, ' критичных колонок — migration_friendships.sql + mendflow_schema.sql')
-    WHEN old_friend_cols > 0 AND new_friend_cols < 3 THEN '✗ Старая схема friendships — запустите migration_friendships.sql'
-    WHEN old_friend_cols > 0 THEN '! Гибрид: новые колонки есть, старые ещё не удалены — перезапустите migration_friendships.sql'
+    WHEN missing_tables > 0 THEN CONCAT('✗ Нет ', missing_tables, ' обязательных таблиц — sql/00_schema.sql или sql/10_upgrade_existing.sql')
+    WHEN missing_cols > 0 THEN CONCAT('✗ Нет ', missing_cols, ' критичных колонок — sql/10_upgrade_existing.sql + sql/20_friendships.sql')
+    WHEN old_friend_cols > 0 AND new_friend_cols < 3 THEN '✗ Старая схема friendships — запустите sql/20_friendships.sql'
+    WHEN old_friend_cols > 0 THEN '! Гибрид: новые колонки есть, старые ещё не удалены — перезапустите sql/20_friendships.sql'
     ELSE '✓ Ядро БД в порядке'
   END AS verdict
 FROM (
@@ -234,4 +234,4 @@ FROM (
 ) summary;
 
 SELECT '' AS '';
-SELECT 'Если есть MISSING: mendflow_schema.sql → migration_friendships.sql → ./deploy.sh' AS hint;
+SELECT 'Если есть MISSING: sql/10_upgrade_existing.sql → sql/20_friendships.sql → ./deploy.sh' AS hint;

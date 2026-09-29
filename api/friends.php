@@ -33,6 +33,11 @@ function acceptFriendRequest(PDO $pdo, int $requestId, int $currentUserId): arra
         return ['ok' => false, 'error' => 'Not authorized', 'code' => 403];
     }
 
+    $fromId = (int)$request['from_id'];
+    if (mfEitherBlocked($pdo, $currentUserId, $fromId)) {
+        return ['ok' => false, 'error' => 'User blocked', 'code' => 403];
+    }
+
     $pdo->prepare('UPDATE friend_requests SET status = "accepted" WHERE id = ?')
         ->execute([$requestId]);
 
@@ -51,6 +56,7 @@ try {
     if (function_exists('ensureFriendshipsSchema')) {
         ensureFriendshipsSchema();
     }
+    ensureBlocksSchema();
     $method = $_SERVER['REQUEST_METHOD'];
     $type = $_GET['type'] ?? null;
 
@@ -58,11 +64,15 @@ try {
     if ($method === 'GET') {
 
         if ($type === 'incoming') {
+            $blocked = mfBlockedUserIds($pdo, $currentUserId);
+            $blockSql = $blocked
+                ? ' AND fr.from_id NOT IN (' . implode(',', array_map('intval', $blocked)) . ')'
+                : '';
             $stmt = $pdo->prepare(
                 'SELECT fr.id, fr.from_id, u.first_name, u.last_name, u.avatar, u.is_verified, fr.created_at
                  FROM friend_requests fr
                  JOIN users u ON fr.from_id = u.id
-                 WHERE fr.to_id = ? AND fr.status = "pending"
+                 WHERE fr.to_id = ? AND fr.status = "pending"' . $blockSql . '
                  ORDER BY fr.created_at DESC'
             );
             $stmt->execute([$currentUserId]);
@@ -84,6 +94,13 @@ try {
         if ($type === 'friends') {
             // Support user_id param: returns friends of that user (public list)
             $targetId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : $currentUserId;
+            if ($targetId !== $currentUserId && mfEitherBlocked($pdo, $currentUserId, $targetId)) {
+                friendsJson(['friends' => []]);
+            }
+            $blocked = ($targetId === $currentUserId) ? mfBlockedUserIds($pdo, $currentUserId) : [];
+            $blockSql = $blocked
+                ? ' AND u.id NOT IN (' . implode(',', array_map('intval', $blocked)) . ')'
+                : '';
             $stmt = $pdo->prepare(
                 'SELECT u.id, u.first_name, u.last_name, u.avatar, u.is_verified
                  FROM friendships f
@@ -91,7 +108,7 @@ try {
                      (f.sender_id = ? AND f.receiver_id = u.id) OR
                      (f.receiver_id = ? AND f.sender_id = u.id)
                  )
-                 WHERE f.status = "accepted"
+                 WHERE f.status = "accepted"' . $blockSql . '
                  ORDER BY u.first_name ASC'
             );
             $stmt->execute([$targetId, $targetId]);
@@ -128,6 +145,9 @@ try {
             $toId = (int)($data['to_id'] ?? 0);
             if (!$toId || $toId === $currentUserId) {
                 friendsJson(['error' => 'Invalid to_id'], 400);
+            }
+            if (mfEitherBlocked($pdo, $currentUserId, $toId)) {
+                friendsJson(['error' => 'User blocked'], 403);
             }
 
             $stmt = $pdo->prepare(

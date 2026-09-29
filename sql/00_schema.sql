@@ -1,17 +1,13 @@
 -- ============================================================================
--- MENDFLOW — полная схема БД (единый файл)
+-- 00 — Полная схема Mendflow (новая база)
 -- ----------------------------------------------------------------------------
--- Совместимо с MySQL 8 и MariaDB (используются только CREATE TABLE IF NOT EXISTS
--- с полными определениями колонок — без ADD COLUMN IF NOT EXISTS / CREATE INDEX
--- IF NOT EXISTS, которых нет в обычном MySQL).
+-- Порядок: sql/00_schema.sql → (если старая БД) 10_upgrade_existing.sql
+--          → 20_friendships.sql при ошибке Unknown column 'status'
 --
--- Безопасно запускать несколько раз. Остальные «фичевые» таблицы (courses,
--- articles, discussions, jobs, badges, reposts, notifications, rate_limits,
--- email_verifications, password_resets, company_follows, project_calendar и др.)
--- приложение создаёт автоматически при первом обращении к соответствующему API.
+-- MariaDB / MySQL 8. CREATE TABLE IF NOT EXISTS — можно запускать повторно.
+-- Живая база с таблицей users: НЕ этот файл, а sql/10_upgrade_existing.sql
 --
--- Импорт на сервере:
---   mysql -u mendflow -p mendflow < mendflow_schema.sql
+--   mysql -u mendflow -p mendflow < sql/00_schema.sql
 -- ============================================================================
 
 SET NAMES utf8mb4;
@@ -27,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash       VARCHAR(255) NOT NULL,
     avatar              VARCHAR(500) DEFAULT NULL,
     cover_image         VARCHAR(500) DEFAULT NULL,
+    university_id       INT          DEFAULT NULL,
     organization        VARCHAR(190) DEFAULT NULL,
     specialty           VARCHAR(200) DEFAULT NULL,
     education           VARCHAR(100) DEFAULT NULL,
@@ -41,9 +38,15 @@ CREATE TABLE IF NOT EXISTS users (
     is_admin            TINYINT(1)   NOT NULL DEFAULT 0,
     email_verified_at   DATETIME     DEFAULT NULL,
     last_seen           DATETIME     DEFAULT NULL,
+    is_banned           TINYINT(1)   NOT NULL DEFAULT 0,
+    banned_at           DATETIME     DEFAULT NULL,
+    ban_reason          VARCHAR(255) DEFAULT NULL,
+    is_deleted          TINYINT(1)   NOT NULL DEFAULT 0,
+    deleted_at          DATETIME     DEFAULT NULL,
     created_at          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_users_role (role),
-    INDEX idx_users_city (city)
+    INDEX idx_users_city (city),
+    INDEX idx_users_university_id (university_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Организации (каталог «Сеть») ────────────────────────────────────────────
@@ -78,9 +81,12 @@ CREATE TABLE IF NOT EXISTS posts (
     user_id    INT NOT NULL,
     text       TEXT NOT NULL,
     image_url  VARCHAR(500) DEFAULT NULL,
+    post_type  VARCHAR(32) NOT NULL DEFAULT 'post',
+    article_id INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_posts_created (created_at),
     INDEX idx_posts_user (user_id),
+    FULLTEXT INDEX ft_posts_text (text),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -232,6 +238,7 @@ CREATE TABLE IF NOT EXISTS uni_club_members (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     club_id    INT NOT NULL,
     user_id    INT NOT NULL,
+    role       ENUM('member','admin','owner') NOT NULL DEFAULT 'member',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_club_member (club_id, user_id),
     INDEX idx_club_members_user (user_id),
@@ -295,6 +302,8 @@ CREATE TABLE IF NOT EXISTS events (
     event_format     ENUM('online','offline') NOT NULL DEFAULT 'offline',
     city             VARCHAR(120) DEFAULT NULL,
     location         VARCHAR(255) DEFAULT NULL,
+    latitude         DECIMAL(10,7) DEFAULT NULL,
+    longitude        DECIMAL(10,7) DEFAULT NULL,
     meeting_link     VARCHAR(255) DEFAULT NULL,
     category         VARCHAR(80) NOT NULL DEFAULT 'Другое',
     max_participants INT DEFAULT NULL,
@@ -351,6 +360,7 @@ CREATE TABLE IF NOT EXISTS projects (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     owner_id    INT NOT NULL,
     title       VARCHAR(200) NOT NULL,
+    slug        VARCHAR(100) DEFAULT NULL,
     description TEXT,
     cover_url   VARCHAR(500) DEFAULT NULL,
     category    ENUM('product','research','design','ai_ml','mobile','web','other') DEFAULT 'other',
@@ -366,6 +376,7 @@ CREATE TABLE IF NOT EXISTS projects (
     INDEX idx_projects_category (category),
     INDEX idx_projects_stage (stage),
     INDEX idx_projects_created (created_at),
+    UNIQUE INDEX idx_projects_slug (slug),
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -375,6 +386,7 @@ CREATE TABLE IF NOT EXISTS project_members (
     user_id             INT NOT NULL,
     permission_role     ENUM('owner','admin','member','viewer') DEFAULT 'member',
     specialization_role ENUM('product_manager','frontend','backend','designer','ml_engineer','analyst','qa','marketing','fullstack','other') DEFAULT 'other',
+    weekly_capacity     DECIMAL(5,2) NOT NULL DEFAULT 40,
     joined_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_member (project_id, user_id),
     INDEX idx_pmembers_project (project_id),
@@ -460,8 +472,8 @@ CREATE TABLE IF NOT EXISTS project_activity (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     project_id INT NOT NULL,
     user_id    INT DEFAULT NULL,
-    type       ENUM('joined','left','post','task_done','milestone','release','role_changed') DEFAULT 'post',
-    meta       VARCHAR(500) DEFAULT NULL,
+    type       VARCHAR(64) NOT NULL DEFAULT 'post',
+    meta       VARCHAR(1000) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_pactivity_project (project_id),
     INDEX idx_pactivity_created (created_at),
@@ -477,7 +489,9 @@ CREATE TABLE IF NOT EXISTS project_tasks (
     created_by   INT NOT NULL,
     title        VARCHAR(300) NOT NULL,
     description  TEXT,
-    status       ENUM('backlog','todo','in_progress','review','done') DEFAULT 'backlog',
+    checklist    JSON DEFAULT NULL,
+    depends_on   JSON DEFAULT NULL,
+    status       VARCHAR(64) NOT NULL DEFAULT 'backlog',
     priority     ENUM('low','medium','high','urgent') DEFAULT 'medium',
     due_date     DATE DEFAULT NULL,
     position     INT DEFAULT 0,
@@ -526,6 +540,7 @@ CREATE TABLE IF NOT EXISTS project_milestones (
     title        VARCHAR(200) NOT NULL,
     description  TEXT,
     target_date  DATE DEFAULT NULL,
+    start_date   DATE DEFAULT NULL,
     status       ENUM('pending','in_progress','done') DEFAULT 'pending',
     position     INT DEFAULT 0,
     completed_at TIMESTAMP NULL DEFAULT NULL,
@@ -630,7 +645,7 @@ CREATE TABLE IF NOT EXISTS realtime_events (
 
 CREATE TABLE IF NOT EXISTS realtime_presence (
     user_id         INT NOT NULL,
-    project_id      INT NULL,
+    project_id      INT NOT NULL DEFAULT 0,
     status          VARCHAR(20) NOT NULL DEFAULT 'connected',
     editing_context VARCHAR(120) NULL,
     last_seen       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -750,6 +765,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     from_user_id INT DEFAULT NULL,
     type         VARCHAR(50) NOT NULL,
     post_id      INT DEFAULT NULL,
+    feature_request_id INT DEFAULT NULL,
     post_preview VARCHAR(255) DEFAULT NULL,
     post_type    VARCHAR(32) DEFAULT NULL,
     is_read      TINYINT(1) DEFAULT 0,
@@ -762,7 +778,10 @@ CREATE TABLE IF NOT EXISTS notifications (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================
--- Готово. Остальные таблицы (courses, articles, discussions, jobs, badges,
--- reposts, feature_requests, company_follows, project_calendar, post_signals
--- и пр.) создаются автоматически при первом обращении к соответствующему API.
+-- Готово. Остальные таблицы API создаёт само при первом запросе:
+--   articles*, discussions*, mf_course*, job_*, user_badges, reposts,
+--   company_* (posts/likes/comments/follows/reposts), uni_likes,
+--   club_notifications, notification_reads, feature_request*,
+--   project_meetings*, project_kanban_columns, task_attachments,
+--   task_comments, task_time_logs, reports, user_blocks, moderation_logs.
 -- ============================================================================

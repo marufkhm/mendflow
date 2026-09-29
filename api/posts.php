@@ -27,6 +27,40 @@ function postsEnsureArticleIdColumn(PDO $pdo): bool
     return $has;
 }
 
+function postsEnsureFulltextIndex(PDO $pdo, string $textCol): bool
+{
+    static $cache = [];
+    if (isset($cache[$textCol])) {
+        return $cache[$textCol];
+    }
+    try {
+        $st = $pdo->prepare(
+            "SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'posts' AND INDEX_NAME = 'ft_posts_text' LIMIT 1"
+        );
+        $st->execute();
+        if (!$st->fetchColumn()) {
+            $pdo->exec("ALTER TABLE posts ADD FULLTEXT INDEX ft_posts_text (`{$textCol}`)");
+        }
+        $cache[$textCol] = true;
+    } catch (Throwable $e) {
+        $cache[$textCol] = false;
+    }
+    return $cache[$textCol];
+}
+
+function postsBuildFulltextQuery(string $q): string
+{
+    $parts = preg_split('/\s+/u', trim($q), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    if (!$parts) {
+        return '';
+    }
+    return implode(' ', array_map(static function ($w) {
+        $w = preg_replace('/[^\p{L}\p{N}]+/u', '', $w);
+        return $w !== '' ? '+' . $w . '*' : '';
+    }, $parts));
+}
+
 function postsArticlePreview(?string $content, int $max = 120): string
 {
     $plain = trim(preg_replace('/[#*`>\[\]_\-]+/u', ' ', (string)$content));
@@ -148,6 +182,12 @@ try {
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$post) { http_response_code(404); echo json_encode(['error' => 'Пост не найден']); exit; }
 
+        if ($userId && mfEitherBlocked($pdo, (int)$userId, (int)$post['user_id'])) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Пост недоступен']);
+            exit;
+        }
+
         $post['id']             = (int)$post['id'];
         $post['user_id']        = (int)$post['user_id'];
         $post['likes_count']    = (int)$post['likes_count'];
@@ -234,10 +274,27 @@ try {
         if ($targetUserId > 0) {
             $whereClauses[] = "p.user_id = ?";
             $params[] = $targetUserId;
+            if ($userId && mfEitherBlocked($pdo, (int)$userId, $targetUserId)) {
+                echo json_encode(['posts' => [], 'page' => $page, 'has_more' => false]);
+                exit;
+            }
         }
         if ($q !== '') {
-            $whereClauses[] = "p.{$textCol} LIKE ?";
-            $params[] = '%' . $q . '%';
+            $ftQuery = postsBuildFulltextQuery($q);
+            if ($ftQuery !== '' && postsEnsureFulltextIndex($pdo, $textCol)) {
+                $whereClauses[] = "MATCH(p.{$textCol}) AGAINST(? IN BOOLEAN MODE)";
+                $params[] = $ftQuery;
+            } else {
+                $whereClauses[] = "p.{$textCol} LIKE ?";
+                $params[] = '%' . $q . '%';
+            }
+        }
+
+        if ($userId) {
+            $blockedSql = mfBlockedFilterSql($pdo, (int)$userId, 'p.user_id');
+            if ($blockedSql) {
+                $whereClauses[] = $blockedSql;
+            }
         }
 
         // Режимы главной ленты

@@ -5,9 +5,20 @@
 (function () {
   'use strict';
 
+  /** SPA deep links (/p/{slug}) — API и статика на корне сайта, не под /p/... */
+  function isSpaAppPathname(pathname) {
+    const clean = (pathname || '/').replace(/\/$/, '') || '/';
+    return /^\/p\/[^/]+$/i.test(clean);
+  }
+
   function normalizeAppDirectory() {
     const loc = window.location;
     const u = new URL(loc.href);
+
+    if (isSpaAppPathname(u.pathname)) {
+      return u.origin + '/';
+    }
+
     let p = u.pathname;
 
     if (p.endsWith('/')) {
@@ -42,8 +53,10 @@
 
     list.push(window.location.origin + '/api');
 
-    const legacy = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '') + '/api';
-    list.push(legacy);
+    if (!isSpaAppPathname(window.location.pathname)) {
+      const legacy = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '') + '/api';
+      list.push(legacy);
+    }
 
     return [...new Set(list.map((s) => s.replace(/\/$/, '')))];
   }

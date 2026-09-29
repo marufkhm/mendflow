@@ -40,6 +40,15 @@ Production: **DigitalOcean** `/var/www/html/mendflow`, домен **https://mend
 | «Небезопасно» в браузере | нет SSL, сайт по http:// | `sudo bash deploy/setup-ssl.sh` на сервере |
 | Письмо не приходит | `.env` без `RESEND_API_KEY` | Resend + verified domain |
 | Realtime 500 | нет `api/auth.php` | включён в репозиторий, залить `api/` |
+| `/p/slug` не открывает проект | старый `index.html` без `<base href="/">` | `./deploy.sh` + Ctrl+Shift+R |
+| `/p/slug` без SEO / превью | nginx отдаёт только `index.html` | `sudo bash deploy/fix-spa-routes.sh` на сервере |
+
+## Публичные ссылки проектов `/p/{slug}`
+
+- `p.php` — SEO (title, og:tags) + тот же SPA
+- `sitemap.php`, `robots.txt` — индексация публичных проектов
+- После деплоя **на сервере один раз**: `cd /var/www/html/mendflow && sudo bash deploy/fix-spa-routes.sh`
+- В `index.html` обязательны `<base href="/">` и абсолютные пути `/js/...`
 
 ## После изменений auth/upload
 

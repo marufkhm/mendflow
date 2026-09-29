@@ -14,7 +14,7 @@
 - `api/comments.php` — комментарии
 - `api/upload.php` — загрузка фото / GIF / видео
 - `uploads/` — загруженные файлы
-- `install.sql` — схема базы данных
+- `sql/` — схема базы данных (см. `sql/README.md`)
 - `diagnostics.html` — страница диагностики API и БД
 - `test-api.html` — ручной тест API
 
@@ -26,7 +26,7 @@
 - `style.css`
 - `api/`
 - `uploads/`
-- `install.sql`
+- `sql/`
 - `diagnostics.html`
 - `test-api.html`
 
@@ -40,7 +40,7 @@
 
 ## Проверка после загрузки
 
-1. Импортируй `install.sql` в MySQL базу.
+1. Новая база: `sql/00_schema.sql`; существующая: `sql/10_upgrade_existing.sql`.
 2. Убедись, что домен указывает на папку `htdocs`.
 3. Открой `diagnostics.html`.
 4. Проверь регистрацию, вход и создание поста.

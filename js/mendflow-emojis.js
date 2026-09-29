@@ -996,9 +996,91 @@
     return out;
   }
 
-  function insert(input, id) {
+  function isRichField(el) {
+    return !!(el && (el.isContentEditable || el.getAttribute('contenteditable') === 'true' || el.dataset.mfRichInput));
+  }
+
+  function insertRich(el, id) {
+    const e = EMOJIS[id];
+    if (!el || !e) return;
+    el.focus();
+    const img = document.createElement('img');
+    img.className = 'mf-emoji mf-sticker';
+    img.src = e.svg;
+    img.alt = e.label;
+    img.dataset.mfToken = id;
+    img.width = 22;
+    img.height = 22;
+    img.draggable = false;
+
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) {
+      el.appendChild(img);
+      el.appendChild(document.createTextNode('\u00a0'));
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
+    let range = sel.getRangeAt(0);
+    if (!el.contains(range.commonAncestorContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+    }
+    range.deleteContents();
+    range.insertNode(img);
+    range.setStartAfter(img);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function getFieldValue(el) {
+    if (!el) return '';
+    if (!isRichField(el)) return String(el.value || '');
+    let out = '';
+    const walk = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) out += node.textContent;
+      else if (node.nodeName === 'IMG' && node.dataset.mfToken) out += token(node.dataset.mfToken);
+      else if (node.nodeName === 'BR') out += '\n';
+      else node.childNodes?.forEach(walk);
+    };
+    el.childNodes.forEach(walk);
+    return out.replace(/\u00a0/g, ' ').trim();
+  }
+
+  function clearField(el) {
+    if (!el) return;
+    if (isRichField(el)) el.innerHTML = '';
+    else el.value = '';
+  }
+
+  function setFieldValue(el, text) {
+    if (!el) return;
+    if (!isRichField(el)) {
+      el.value = text || '';
+      return;
+    }
+    el.innerHTML = text ? render(text) : '';
+  }
+
+  function normalize(text) {
+    if (text == null || text === '') return '';
+    return String(text).replace(/:([a-z]+):/g, (match, id) => {
+      const e = EMOJIS[id];
+      return e && e.unicode ? e.unicode : match;
+    });
+  }
+
+  function insert(input, id, opts) {
     if (!input || !EMOJIS[id]) return;
-    const insertText = token(id);
+    if (isRichField(input)) {
+      insertRich(input, id);
+      return;
+    }
+    opts = opts || {};
+    const e = EMOJIS[id];
+    const insertText = opts.asToken ? token(id) : (e.unicode || token(id));
     const start = input.selectionStart ?? input.value.length;
     const end = input.selectionEnd ?? start;
     const before = input.value.slice(0, start);
@@ -1111,6 +1193,12 @@
     attachIcons,
     reactionHtml,
     preview,
+    normalize,
+    getFieldValue,
+    clearField,
+    setFieldValue,
+    isRichField,
+    insertRich,
     render,
     insert,
     openPicker,

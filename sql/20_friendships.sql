@@ -1,17 +1,8 @@
 -- ============================================================================
--- migration_friendships.sql
--- Приводит таблицу `friendships` к схеме, которую ожидает код приложения:
---   sender_id / receiver_id / status / created_at / updated_at
---
--- Причина: старые схемы (install.sql, mendflow_schema.sql, migration_v2.sql)
--- создавали friendships с колонками user1_id / user2_id / confirmed, а весь
--- PHP-код (friends.php, profile.php, friend_recommendations.php, companies.php,
--- courses.php) обращается к sender_id / receiver_id / status.
--- Симптом: SQLSTATE[42S22] Unknown column 'status' in 'WHERE'.
---
--- БЕЗОПАСНО запускать повторно (idempotent). Данные переносятся.
--- Сервер:  mysql -u mendflow -p mendflow < migration_friendships.sql
--- DBeaver: открыть файл → Alt+X
+-- 20 — friendships: sender_id / receiver_id / status
+-- Старые схемы: user1_id / user2_id / confirmed
+-- Симптом: Unknown column 'status'
+--   mysql -u mendflow -p mendflow < sql/20_friendships.sql
 -- ============================================================================
 
 SET NAMES utf8mb4;
@@ -107,7 +98,7 @@ BEGIN
     END IF;
 
     -- Удаляем устаревшие колонки и индексы (после переноса данных)
-    IF has_user1 = 1 AND has_sender > 0 THEN
+    IF has_user1 = 1 THEN
       BEGIN
         DECLARE done INT DEFAULT 0;
         DECLARE fk_name VARCHAR(64);

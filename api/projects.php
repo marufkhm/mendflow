@@ -9,6 +9,8 @@ ini_set('display_errors', 0);
 require_once 'db.php';
 require_once __DIR__ . '/project_roles.php';
 require_once __DIR__ . '/project_templates.php';
+require_once __DIR__ . '/project_resource_plans.php';
+require_once __DIR__ . '/project_slug.php';
 
 function ensureProjectsSchema(PDO $pdo): void
 {
@@ -115,10 +117,12 @@ function ensureProjectsSchema(PDO $pdo): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
     ensureProjectRolesSchema($pdo);
+    ensureProjectSlugColumn($pdo);
 }
 
 try {
     ensureProjectsSchema($pdo);
+    ensureProjectKanbanColumnsSchema($pdo);
     $method = $_SERVER['REQUEST_METHOD'];
     $action = trim($_GET['action'] ?? '');
 
@@ -154,7 +158,7 @@ try {
 
             $stmt = $pdo->prepare("
                 SELECT
-                    p.id, p.title, p.description, p.cover_url, p.category,
+                    p.id, p.slug, p.title, p.description, p.cover_url, p.category,
                     p.stage, p.tags, p.looking_for, p.created_at,
                     u.id AS owner_id, u.first_name, u.last_name, u.avatar,
                     (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) AS member_count,
@@ -186,6 +190,66 @@ try {
             exit;
         }
 
+        // GET /projects.php?action=recommended — projects by user interests
+        if ($action === 'recommended') {
+            $userId = verifyToken();
+            $limit = min(12, max(1, (int)($_GET['limit'] ?? 6)));
+            $tokens = projectInterestTokens($pdo, $userId);
+
+            $stmt = $pdo->prepare("
+                SELECT
+                    p.id, p.slug, p.title, p.description, p.cover_url, p.category,
+                    p.stage, p.tags, p.created_at,
+                    u.first_name, u.last_name,
+                    (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) AS member_count
+                FROM projects p
+                JOIN users u ON p.owner_id = u.id
+                WHERE p.is_public = 1
+                  AND p.owner_id != ?
+                  AND NOT EXISTS (
+                    SELECT 1 FROM project_members pm2
+                    WHERE pm2.project_id = p.id AND pm2.user_id = ?
+                  )
+                ORDER BY p.created_at DESC
+                LIMIT 80
+            ");
+            $stmt->execute([$userId, $userId]);
+            $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($candidates as &$p) {
+                $p['tags'] = $p['tags'] ? explode(',', $p['tags']) : [];
+                $p['score'] = projectScoreForUser($p, $tokens);
+            }
+            unset($p);
+
+            usort($candidates, static function ($a, $b) {
+                return ($b['score'] <=> $a['score']) ?: strcmp($b['created_at'], $a['created_at']);
+            });
+
+            $recommended = array_values(array_filter($candidates, static fn($p) => ($p['score'] ?? 0) > 0));
+            $recIds = array_column($recommended, 'id');
+            if (count($recommended) < $limit) {
+                foreach ($candidates as $p) {
+                    if (count($recommended) >= $limit) {
+                        break;
+                    }
+                    if (!in_array($p['id'], $recIds, true)) {
+                        $recommended[] = $p;
+                        $recIds[] = $p['id'];
+                    }
+                }
+            }
+            $recommended = array_slice($recommended, 0, $limit);
+            foreach ($recommended as &$p) {
+                unset($p['score']);
+                $p['time_ago'] = timeAgo($p['created_at']);
+            }
+            unset($p);
+
+            echo json_encode(['projects' => $recommended], JSON_UNESCAPED_UNICODE | (defined('JSON_INVALID_UTF8_SUBSTITUTE') ? JSON_INVALID_UTF8_SUBSTITUTE : 0));
+            exit;
+        }
+
         // GET /projects.php?action=my — user's own projects
         if ($action === 'my') {
             $userId = verifyToken();
@@ -214,10 +278,10 @@ try {
             mfJsonResponse(['projects' => $projects]);
         }
 
-        // GET /projects.php?action=detail&id=X — single project detail
+        // GET /projects.php?action=detail&id=X|slug=Y — single project detail
         if ($action === 'detail') {
-            $projectId = (int)($_GET['id'] ?? 0);
-            if (!$projectId) { http_response_code(400); echo json_encode(['error' => 'ID не указан']); exit; }
+            $projectId = projectResolveId($pdo, (int)($_GET['id'] ?? 0), trim($_GET['slug'] ?? ''));
+            if (!$projectId) { http_response_code(400); echo json_encode(['error' => 'Проект не указан']); exit; }
 
             $stmt = $pdo->prepare("
                 SELECT p.*,
@@ -295,6 +359,54 @@ try {
                 $m['joined_ago'] = timeAgo($m['joined_at']);
             }
             echo json_encode(['members' => $members]);
+            exit;
+        }
+
+        // GET /projects.php?action=activity&id=X
+        if ($action === 'activity') {
+            $userId = verifyToken();
+            $projectId = (int)($_GET['id'] ?? $_GET['project_id'] ?? 0);
+            if (!$projectId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'id required']);
+                exit;
+            }
+            $stmt = $pdo->prepare('SELECT is_public FROM projects WHERE id=?');
+            $stmt->execute([$projectId]);
+            $proj = $stmt->fetch();
+            if (!$proj) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Проект не найден']);
+                exit;
+            }
+            if (!$proj['is_public']) {
+                $m = $pdo->prepare('SELECT id FROM project_members WHERE project_id=? AND user_id=?');
+                $m->execute([$projectId, $userId]);
+                if (!$m->fetch()) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Нет доступа']);
+                    exit;
+                }
+            }
+            ensureProjectActivitySchema($pdo);
+            $limit = min(50, max(10, (int)($_GET['limit'] ?? 30)));
+            $stmt = $pdo->prepare("
+                SELECT pa.*, u.first_name, u.last_name, u.avatar
+                FROM project_activity pa
+                LEFT JOIN users u ON u.id = pa.user_id
+                WHERE pa.project_id = ?
+                ORDER BY pa.created_at DESC
+                LIMIT ?
+            ");
+            $stmt->execute([$projectId, $limit]);
+            $items = $stmt->fetchAll();
+            foreach ($items as &$a) {
+                $a['time_ago'] = timeAgo($a['created_at']);
+                $meta = json_decode((string)($a['meta'] ?? ''), true);
+                $a['meta_json'] = is_array($meta) ? $meta : ['text' => (string)($a['meta'] ?? '')];
+            }
+            unset($a);
+            echo json_encode(['activity' => $items], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
@@ -414,12 +526,16 @@ try {
                 isset($data['is_public']) ? (int)(bool)$data['is_public'] : 1,
             ]);
             $projectId = (int)$pdo->lastInsertId();
+            $slug = projectUniqueSlug($pdo, $title, $projectId);
+            $pdo->prepare('UPDATE projects SET slug = ? WHERE id = ?')->execute([$slug, $projectId]);
 
             // Auto-add owner as member
             $pdo->prepare("
                 INSERT INTO project_members (project_id, user_id, permission_role, specialization_role)
                 VALUES (?, ?, 'owner', ?)
             ")->execute([$projectId, $userId, $data['my_specialization'] ?? 'other']);
+
+            ensureProjectKanbanColumns($pdo, $projectId);
 
             $stmt = $pdo->prepare("SELECT p.*, u.first_name, u.last_name FROM projects p JOIN users u ON p.owner_id=u.id WHERE p.id=?");
             $stmt->execute([$projectId]);
@@ -448,12 +564,13 @@ try {
                 $tags = implode(',', array_map('trim', array_slice($data['tags'], 0, 10)));
             }
 
+            $title = trim($data['title'] ?? '');
             $sets = [
                 'title=?', 'description=?', 'category=?', 'stage=?',
                 'tags=?', 'looking_for=?', 'website_url=?', 'github_url=?', 'is_public=?',
             ];
             $params = [
-                trim($data['title']       ?? ''),
+                $title,
                 trim($data['description'] ?? ''),
                 $data['category']    ?? 'other',
                 $data['stage']       ?? 'idea',
@@ -463,6 +580,10 @@ try {
                 $data['github_url']  ?? null,
                 isset($data['is_public']) ? (int)(bool)$data['is_public'] : 1,
             ];
+            if ($title !== '') {
+                $sets[] = 'slug=?';
+                $params[] = projectUniqueSlug($pdo, $title, $projectId);
+            }
             if (array_key_exists('cover_url', $data)) {
                 $sets[] = 'cover_url=?';
                 $cover = trim((string)($data['cover_url'] ?? ''));
@@ -471,6 +592,49 @@ try {
             $params[] = $projectId;
             $pdo->prepare('UPDATE projects SET ' . implode(', ', $sets) . ' WHERE id=?')->execute($params);
             echo json_encode(['success' => true]);
+            exit;
+        }
+
+        // Kanban: add column
+        if ($action === 'kanban_column_add') {
+            $projectId = (int)($data['project_id'] ?? 0);
+            if (!$projectId) { http_response_code(400); echo json_encode(['error' => 'project_id обязателен']); exit; }
+            requireKanbanEditor($pdo, $projectId, $userId);
+            $column = createProjectKanbanColumn($pdo, $projectId, (string)($data['label'] ?? ''), $data['color'] ?? null);
+            logProjectActivity($pdo, $projectId, $userId, 'kanban_column_added', 'project', $projectId, [
+                'label' => $column['label'],
+                'col_key' => $column['key'],
+            ]);
+            echo json_encode(['column' => $column]);
+            exit;
+        }
+
+        // Kanban: delete column
+        if ($action === 'kanban_column_delete') {
+            $projectId = (int)($data['project_id'] ?? 0);
+            $colKey = trim((string)($data['col_key'] ?? ''));
+            if (!$projectId || !$colKey) { http_response_code(400); echo json_encode(['error' => 'project_id и col_key обязательны']); exit; }
+            requireKanbanEditor($pdo, $projectId, $userId);
+            deleteProjectKanbanColumn($pdo, $projectId, $colKey);
+            logProjectActivity($pdo, $projectId, $userId, 'kanban_column_deleted', 'project', $projectId, [
+                'col_key' => $colKey,
+            ]);
+            echo json_encode(['success' => true]);
+            exit;
+        }
+
+        // Kanban: reorder columns
+        if ($action === 'kanban_column_reorder') {
+            $projectId = (int)($data['project_id'] ?? 0);
+            $order = $data['order'] ?? [];
+            if (!$projectId || !is_array($order) || !$order) {
+                http_response_code(400);
+                echo json_encode(['error' => 'project_id и order обязательны']);
+                exit;
+            }
+            requireKanbanEditor($pdo, $projectId, $userId);
+            $columns = reorderProjectKanbanColumns($pdo, $projectId, $order);
+            echo json_encode(['kanban_columns' => $columns]);
             exit;
         }
 
@@ -557,15 +721,7 @@ try {
                     VALUES (?,?,'member',?)
                 ")->execute([$projectId, $requestUserId, $spec]);
                 // Log activity
-                try {
-                    $newUser = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id=?");
-                    $newUser->execute([$requestUserId]);
-                    $nu = $newUser->fetch();
-                    if ($nu) {
-                        $pdo->prepare("INSERT INTO project_activity (project_id, user_id, type, meta) VALUES (?,?,'joined',?)")
-                            ->execute([$projectId, $requestUserId, $nu['first_name'].' '.$nu['last_name'].' вступил в проект']);
-                    }
-                } catch (Throwable $e) {}
+                logProjectActivity($pdo, $projectId, $requestUserId, 'member_joined', 'member', $requestUserId, []);
             } elseif ($decision === 'reject') {
                 $pdo->prepare("UPDATE project_join_requests SET status='rejected' WHERE project_id=? AND user_id=?")->execute([$projectId, $requestUserId]);
             }
@@ -600,6 +756,10 @@ try {
             if ($specRole) {
                 $pdo->prepare("UPDATE project_members SET specialization_role=? WHERE project_id=? AND user_id=?")->execute([$specRole, $projectId, $targetUserId]);
             }
+            logProjectActivity($pdo, $projectId, $userId, 'role_changed', 'member', $targetUserId, [
+                'permission_role' => $permRole,
+                'specialization_role' => $specRole,
+            ]);
             echo json_encode(['success' => true]);
             exit;
         }
@@ -614,6 +774,7 @@ try {
             $ownerCheck->execute([$projectId, $targetUserId]);
             $mem = $ownerCheck->fetch();
             if ($mem && $mem['permission_role'] === 'owner') { http_response_code(403); echo json_encode(['error' => 'Нельзя удалить владельца']); exit; }
+            logProjectActivity($pdo, $projectId, $userId, 'member_removed', 'member', $targetUserId, []);
             $pdo->prepare("DELETE FROM project_members WHERE project_id=? AND user_id=?")->execute([$projectId, $targetUserId]);
             echo json_encode(['success' => true]);
             exit;
@@ -641,6 +802,11 @@ try {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────
+function requireKanbanEditor(PDO $pdo, int $projectId, int $userId): void
+{
+    requireRole($pdo, $projectId, $userId, ['owner', 'admin', 'member']);
+}
+
 function requireRole(PDO $pdo, int $projectId, int $userId, array $roles): void {
     $stmt = $pdo->prepare("SELECT permission_role FROM project_members WHERE project_id=? AND user_id=?");
     $stmt->execute([$projectId, $userId]);

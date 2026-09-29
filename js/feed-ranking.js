@@ -15,8 +15,20 @@
   let flushTimer = null;
   let observer = null;
 
+  function getToken() {
+    if (typeof global.resolveAuthToken === 'function') {
+      const t = global.resolveAuthToken();
+      if (t) return t;
+    }
+    try {
+      return localStorage.getItem('mendflow_token') || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function authHeaders() {
-    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    const token = getToken();
     const h = { 'Content-Type': 'application/json' };
     if (token) h.Authorization = 'Bearer ' + token;
     return h;
@@ -44,7 +56,7 @@
   function flush() {
     flushTimer = null;
     if (!queue.size) return;
-    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    const token = getToken();
     if (!token) {
       queue.clear();
       return;
@@ -138,7 +150,7 @@
   }
 
   function recordDmShare(postId, toUserId) {
-    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    const token = getToken();
     if (!token || !postId || !toUserId) return;
     const url = (global.MF_API_BASE || './api') + '/post_signals.php';
     fetch(url, {

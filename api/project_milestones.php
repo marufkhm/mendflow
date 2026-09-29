@@ -129,6 +129,18 @@ try {
                 syncProjectStage($pdo, (int)$m['project_id'], $m['stage_key'], $status === 'done');
             }
 
+            $logType = 'milestone_updated';
+            $logMeta = ['title' => trim($data['title'] ?? $m['title'])];
+            if (($data['target_date'] ?? null) !== ($m['target_date'] ?? null)) {
+                $logType = 'milestone_due_changed';
+                $logMeta['target_date'] = $data['target_date'] ?? null;
+            }
+            if ($status !== ($m['status'] ?? '')) {
+                $logType = 'milestone_status_changed';
+                $logMeta['status'] = $status;
+            }
+            logProjectActivity($pdo, (int)$m['project_id'], $userId, $logType, 'milestone', $id, $logMeta);
+
             echo json_encode(['success' => true, 'milestone' => fetchMilestone($pdo, $id)]);
             exit;
         }
@@ -161,6 +173,10 @@ try {
             }
 
             syncProjectStage($pdo, (int)$m['project_id'], $m['stage_key'], true);
+
+            logProjectActivity($pdo, (int)$m['project_id'], $userId, 'milestone_completed', 'milestone', $id, [
+                'title' => (string)($m['title'] ?? 'Веха'),
+            ]);
 
             $postId = null;
             if ($postToFeed) {

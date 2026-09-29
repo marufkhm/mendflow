@@ -269,7 +269,11 @@ try {
                        n.post_preview, n.post_type
                 FROM notifications n
                 LEFT JOIN users u ON u.id = n.from_user_id
-                WHERE n.user_id = ? AND n.type IN ('feature_status', 'job_application', 'job_status')
+                WHERE n.user_id = ? AND n.type IN (
+                    'feature_status', 'job_application', 'job_status',
+                    'task_assigned', 'task_due_soon', 'task_overdue',
+                    'task_commented', 'task_status_changed', 'task_mentioned', 'post_mentioned'
+                )
             ";
             $params = [$userId];
             if ($since !== '') {

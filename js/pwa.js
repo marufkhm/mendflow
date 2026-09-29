@@ -6,13 +6,18 @@
   'use strict';
 
   const PROFILE_TABS = ['posts', 'friends', 'projects', 'subscriptions', 'reposts'];
+  const MORE_VIEWS = new Set([
+    'internshipsView',
+    'coursesView',
+    'eventsView',
+    'connectView',
+    'ideasView',
+  ]);
+
+  let moreMenuOpen = false;
 
   function $(id) {
     return document.getElementById(id);
-  }
-
-  function isMobile() {
-    return window.matchMedia('(max-width: 768px)').matches;
   }
 
   async function purgeLegacyServiceWorkers() {
@@ -27,20 +32,66 @@
     } catch (_) {}
   }
 
+  function closeMoreMenu() {
+    moreMenuOpen = false;
+    document.body.classList.remove('mf-more-open');
+    $('mobileMoreBackdrop')?.classList.add('is-hidden');
+    $('mobileMoreSheet')?.classList.add('is-hidden');
+    $('mobileMoreBackdrop')?.setAttribute('aria-hidden', 'true');
+    const btn = $('mobileNavMoreBtn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+
+  function openMoreMenu() {
+    moreMenuOpen = true;
+    document.body.classList.add('mf-more-open');
+    $('mobileMoreBackdrop')?.classList.remove('is-hidden');
+    $('mobileMoreSheet')?.classList.remove('is-hidden');
+    $('mobileMoreBackdrop')?.setAttribute('aria-hidden', 'false');
+    const btn = $('mobileNavMoreBtn');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+  }
+
+  function toggleMoreMenu(e) {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (moreMenuOpen) closeMoreMenu();
+    else openMoreMenu();
+  }
+
   function syncBottomNav(viewId) {
     document.querySelectorAll('.mobile-nav-item[data-view-target]').forEach((btn) => {
       btn.classList.toggle('is-active', btn.dataset.viewTarget === viewId);
     });
+    const moreBtn = $('mobileNavMoreBtn');
+    if (moreBtn) {
+      moreBtn.classList.toggle('is-active', MORE_VIEWS.has(viewId) || moreMenuOpen);
+    }
     const profileBtn = document.querySelector('.mobile-nav-item[data-mf-nav="profile"]');
     if (profileBtn) {
       profileBtn.classList.toggle('is-active', viewId === 'clientProfileView');
     }
+    document.querySelectorAll('.mobile-more-item[data-view-target]').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.viewTarget === viewId);
+    });
+  }
+
+  function navigateToView(target) {
+    if (!target) return;
+    closeMoreMenu();
+    if (typeof window.showView === 'function') {
+      window.showView(target);
+    } else {
+      document.querySelectorAll('[data-view-target="' + target + '"]').forEach((b) => b.click());
+    }
+    syncBottomNav(target);
   }
 
   function setAppChrome(active) {
     document.body.classList.toggle('mf-app-active', active);
     const nav = $('mobileBottomNav');
     if (nav) nav.classList.toggle('is-hidden', !active);
+    if (!active) closeMoreMenu();
   }
 
   function bindSwipe(el, handlers) {
@@ -78,7 +129,6 @@
   function attachSwipeGestures() {
     bindSwipe($('chatActiveThread') || document.querySelector('.msg-thread-shell'), {
       onSwipeRight() {
-        if (!isMobile()) return;
         if (!$('chatsView')?.classList.contains('has-active-chat')) return;
         $('chatMobileBackBtn')?.click();
       },
@@ -87,15 +137,31 @@
     const profileRoot = $('clientProfileView') || document.querySelector('.upf-root');
     bindSwipe(profileRoot, {
       onSwipeLeft() {
-        if (!isMobile()) return;
         if (!$('clientProfileView')?.classList.contains('app-view-active')) return;
         switchProfileTab(1);
       },
       onSwipeRight() {
-        if (!isMobile()) return;
         if (!$('clientProfileView')?.classList.contains('app-view-active')) return;
         switchProfileTab(-1);
       },
+    });
+  }
+
+  function attachMoreMenu() {
+    const moreBtn = $('mobileNavMoreBtn');
+    if (moreBtn) {
+      moreBtn.addEventListener('click', toggleMoreMenu);
+    }
+
+    $('mobileMoreClose')?.addEventListener('click', closeMoreMenu);
+    $('mobileMoreBackdrop')?.addEventListener('click', closeMoreMenu);
+
+    document.querySelectorAll('.mobile-more-item[data-view-target]').forEach((btn) => {
+      btn.addEventListener('click', () => navigateToView(btn.dataset.viewTarget));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMoreMenu();
     });
   }
 
@@ -104,24 +170,17 @@
     if (!nav) return;
 
     nav.querySelectorAll('[data-view-target]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const target = btn.dataset.viewTarget;
-        if (!target) return;
-        if (typeof window.showView === 'function') {
-          window.showView(target);
-        } else {
-          document.querySelectorAll('[data-view-target="' + target + '"]').forEach((b) => b.click());
-        }
-        syncBottomNav(target);
-      });
+      btn.addEventListener('click', () => navigateToView(btn.dataset.viewTarget));
     });
 
     nav.querySelector('[data-mf-nav="profile"]')?.addEventListener('click', () => {
+      closeMoreMenu();
       $('userPill')?.click();
       syncBottomNav('clientProfileView');
     });
 
     const observer = new MutationObserver(() => {
+      if (moreMenuOpen) return;
       const active = document.querySelector('.app-view.app-view-active');
       if (active) syncBottomNav(active.id);
     });
@@ -136,7 +195,7 @@
     const update = () => {
       const active = !shell.classList.contains('is-hidden');
       setAppChrome(active);
-      if (active) {
+      if (active && !moreMenuOpen) {
         const view = document.querySelector('.app-view.app-view-active');
         if (view) syncBottomNav(view.id);
       }
@@ -148,6 +207,7 @@
 
   async function init() {
     await purgeLegacyServiceWorkers();
+    attachMoreMenu();
     attachBottomNav();
     attachSwipeGestures();
     watchAppShell();
@@ -156,6 +216,9 @@
   window.MF_PWA = {
     init,
     syncBottomNav,
+    closeMoreMenu,
+    openMoreMenu,
+    toggleMoreMenu,
     PROFILE_TABS,
   };
 
