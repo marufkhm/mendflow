@@ -32,7 +32,7 @@
     } catch (_) {}
   }
 
-  function closeMoreMenu() {
+  function hideMoreMenuUi() {
     moreMenuOpen = false;
     document.body.classList.remove('mf-more-open');
     $('mobileMoreBackdrop')?.classList.add('is-hidden');
@@ -40,9 +40,20 @@
     $('mobileMoreBackdrop')?.setAttribute('aria-hidden', 'true');
     const btn = $('mobileNavMoreBtn');
     if (btn) btn.setAttribute('aria-expanded', 'false');
+    const active = document.querySelector('.app-view.app-view-active');
+    if (active) syncBottomNav(active.id);
+  }
+
+  function closeMoreMenu() {
+    const wasOpen = moreMenuOpen;
+    hideMoreMenuUi();
+    if (!wasOpen || !window.MF_MOBILE) return Promise.resolve(false);
+    return window.MF_MOBILE.closeOverlay('more');
   }
 
   function openMoreMenu() {
+    if (moreMenuOpen) return;
+    window.MF_MOBILE?.openOverlay('more', hideMoreMenuUi);
     moreMenuOpen = true;
     document.body.classList.add('mf-more-open');
     $('mobileMoreBackdrop')?.classList.remove('is-hidden');
@@ -77,14 +88,25 @@
   }
 
   function navigateToView(target) {
-    if (!target) return;
-    closeMoreMenu();
-    if (typeof window.showView === 'function') {
-      window.showView(target);
-    } else {
-      document.querySelectorAll('[data-view-target="' + target + '"]').forEach((b) => b.click());
-    }
-    syncBottomNav(target);
+    if (target) syncBottomNav(target);
+  }
+
+  let replayingClick = false;
+
+  /**
+   * Пока шторка «Ещё» открыта, переход откладывается до отката её записи
+   * в history — иначе pushState раздела окажется перед history.back().
+   */
+  function interceptNavWhileMoreOpen(e) {
+    if (replayingClick || !moreMenuOpen) return;
+    const btn = e.target.closest?.('#mobileBottomNav [data-view-target], #mobileBottomNav [data-mf-nav], #mobileMoreSheet [data-view-target]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeMoreMenu().then(() => {
+      replayingClick = true;
+      try { btn.click(); } finally { replayingClick = false; }
+    });
   }
 
   function setAppChrome(active) {
@@ -153,15 +175,17 @@
       moreBtn.addEventListener('click', toggleMoreMenu);
     }
 
-    $('mobileMoreClose')?.addEventListener('click', closeMoreMenu);
-    $('mobileMoreBackdrop')?.addEventListener('click', closeMoreMenu);
+    $('mobileMoreClose')?.addEventListener('click', () => closeMoreMenu());
+    $('mobileMoreBackdrop')?.addEventListener('click', () => closeMoreMenu());
+
+    document.addEventListener('click', interceptNavWhileMoreOpen, true);
 
     document.querySelectorAll('.mobile-more-item[data-view-target]').forEach((btn) => {
       btn.addEventListener('click', () => navigateToView(btn.dataset.viewTarget));
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeMoreMenu();
+      if (e.key === 'Escape' && moreMenuOpen) closeMoreMenu();
     });
   }
 
@@ -174,7 +198,6 @@
     });
 
     nav.querySelector('[data-mf-nav="profile"]')?.addEventListener('click', () => {
-      closeMoreMenu();
       $('userPill')?.click();
       syncBottomNav('clientProfileView');
     });

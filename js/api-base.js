@@ -2,6 +2,82 @@
  * Mendflow API base — нормализация URL и проверка ping.
  * Подключать в <head> до pwa.js и основного приложения.
  */
+
+/**
+ * Safari Private / in-app WebView / переполненная квота: localStorage бросает
+ * исключение на чтении или записи. Подменяем на in-memory хранилище, чтобы
+ * все прямые вызовы localStorage.* в приложении продолжали работать.
+ */
+(function installSafeStorage() {
+  'use strict';
+
+  function makeMemoryStorage() {
+    const data = new Map();
+    return {
+      get length() { return data.size; },
+      key(i) { return Array.from(data.keys())[i] ?? null; },
+      getItem(k) { k = String(k); return data.has(k) ? data.get(k) : null; },
+      setItem(k, v) { data.set(String(k), String(v)); },
+      removeItem(k) { data.delete(String(k)); },
+      clear() { data.clear(); },
+    };
+  }
+
+  function wrapStorage(real) {
+    const memory = makeMemoryStorage();
+    return {
+      get length() { try { return real.length; } catch (_) { return memory.length; } },
+      key(i) { try { return real.key(i); } catch (_) { return memory.key(i); } },
+      getItem(k) {
+        try { return real.getItem(k); } catch (_) { return memory.getItem(k); }
+      },
+      setItem(k, v) {
+        try { real.setItem(k, v); } catch (_) { memory.setItem(k, v); }
+      },
+      removeItem(k) {
+        try { real.removeItem(k); } catch (_) {}
+        memory.removeItem(k);
+      },
+      clear() {
+        try { real.clear(); } catch (_) {}
+        memory.clear();
+      },
+    };
+  }
+
+  ['localStorage', 'sessionStorage'].forEach((name) => {
+    let real = null;
+    let healthy = false;
+    try {
+      real = window[name];
+      const probe = '__mf_storage_probe__';
+      real.setItem(probe, '1');
+      real.removeItem(probe);
+      healthy = true;
+    } catch (_) {}
+    if (healthy) {
+      try {
+        const proto = Object.getPrototypeOf(real);
+        const origSet = proto.setItem;
+        if (!origSet.__mfSafe) {
+          const safeSet = function (k, v) {
+            try { return origSet.call(this, k, v); } catch (err) {
+              console.warn('[mf-storage] setItem failed:', k, err && err.name);
+            }
+          };
+          safeSet.__mfSafe = true;
+          proto.setItem = safeSet;
+        }
+      } catch (_) {}
+      return;
+    }
+    const replacement = real ? wrapStorage(real) : makeMemoryStorage();
+    try {
+      Object.defineProperty(window, name, { configurable: true, get: () => replacement });
+    } catch (_) {}
+  });
+})();
+
 (function () {
   'use strict';
 

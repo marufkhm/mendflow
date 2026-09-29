@@ -40,6 +40,7 @@ body {
   color: var(--ink);
   background: #fafaf8;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 a {
@@ -2121,6 +2122,7 @@ button.is-pressed {
   gap: 22px;
   align-items: stretch;
   min-height: calc(100vh - 64px);
+  min-height: calc(100dvh - 64px);
 }
 
 .auth-layout-register,
@@ -5252,6 +5254,7 @@ select.filter-input:focus {
 .msg-view {
   display: none !important;
   height: calc(100vh - 80px);
+  height: calc(100dvh - 80px);
   max-height: 860px;
   border-radius: 24px;
   overflow: hidden;
@@ -15459,6 +15462,7 @@ textarea::placeholder {
 .auth-screen.auth-screen-active {
   position: relative;
   min-height: calc(100vh - 32px);
+  min-height: calc(100dvh - 32px);
   display: block;
   border-radius: 28px;
   overflow: hidden;
@@ -18181,6 +18185,7 @@ textarea::placeholder {
   overflow: hidden;
   background: linear-gradient(165deg, #faf8ff 0%, #f3eeff 38%, #f8fafc 100%);
   min-height: calc(100vh - 80px);
+  min-height: calc(100dvh - 80px);
   width: 100%;
 }
 
@@ -20155,6 +20160,7 @@ button.art-tag-chip:hover {
   position: relative;
   background: linear-gradient(165deg, #faf8ff 0%, #f3eeff 38%, #f8fafc 100%);
   min-height: calc(100vh - 80px);
+  min-height: calc(100dvh - 80px);
   width: 100%;
   display: flex;
   flex-direction: column;

@@ -35,21 +35,22 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="mendflow-build" content="20260707-public-project">
   <title>mendflow</title>
-  <script src="/js/api-base.js?v=20260707-public-project"></script>
+  <script src="/js/api-base.js?v=20260930-m1"></script>
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=20260707-public-project">
+  <link rel="stylesheet" href="/style.css?v=20260930-m1">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <script src="/js/mendflow-emojis.js?v=20260705-sparkles-ideas"></script>
   <script src="/js/onboarding.js?v=20260703"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="/js/events-map.js?v=20260930-osm"></script>
   <script src="/js/feed-ranking.js?v=20260929-token"></script>
-  <script src="/js/pwa.js?v=20260704-more2" defer></script>
+  <script src="/js/mobile-ui.js?v=20260930-m1"></script>
+  <script src="/js/pwa.js?v=20260930-m1" defer></script>
   <style>
     :root {
       --text: var(--ink, #16131d);
@@ -7432,6 +7433,7 @@
   }
 
   </style>
+  <link rel="stylesheet" href="/mobile.css?v=20260930-m1" />
   <div class="inbox-modal is-hidden" id="communityModal">
     <div class="inbox-backdrop" id="closeCommunityBackdrop"></div>
     <div class="inbox-dialog panel">
@@ -8967,6 +8969,8 @@
       mfRestoreAppView({ skipHash: true });
     });
     window.addEventListener('popstate', (e) => {
+      if (window.MF_MOBILE?.handlePopState?.(e)) return;
+      if (e.state?.mfOverlay && !e.state.viewId) return;
       if (!currentToken || $('appShell')?.classList.contains('is-hidden')) return;
       if (e.state?.viewId) showView(e.state.viewId, { skipHash: true });
       else mfRestoreAppView({ skipRefresh: false });

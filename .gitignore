@@ -26,3 +26,4 @@ logs/
 # ── PHP dependencies ──────────────────────────────────────────
 /vendor/
 composer.lock
+.mf-test-token
