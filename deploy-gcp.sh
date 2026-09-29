@@ -2,6 +2,7 @@
 # Деплой на Google Cloud через git:
 #   ./deploy-gcp.sh "сообщение коммита"   — commit + push + pull на сервере
 #   ./deploy-gcp.sh                       — только push уже сделанных коммитов + pull
+# Новые файлы в корне проекта добавляйте вручную: git add <файл>
 set -euo pipefail
 
 VM="${MF_GCP_VM:-mendflow}"
@@ -22,13 +23,14 @@ if [ "$(git branch --show-current)" != "$BRANCH" ]; then
   echo "✗ Текущая ветка не $BRANCH"; exit 1
 fi
 
-if [ -n "$(git status --porcelain)" ]; then
+if [ -n "$(git status --porcelain --untracked-files=no)" ] || { [ $# -gt 0 ] && [ -n "$(git status --porcelain)" ]; }; then
   if [ $# -eq 0 ]; then
     echo "✗ Есть незакоммиченные изменения. Запустите: ./deploy-gcp.sh \"описание изменений\""
-    git status --short
+    git status --short --untracked-files=no
     exit 1
   fi
-  git add -A
+  git add -u
+  git add api js sql docs deploy icons 2>/dev/null || true
   if git diff --cached --name-only | grep -qE '(^|/)\.env$'; then
     echo "✗ .env попал в коммит — отмена"; git reset -q; exit 1
   fi
