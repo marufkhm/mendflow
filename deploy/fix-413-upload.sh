@@ -48,12 +48,17 @@ if [[ -d "$POOL_DIR" ]]; then
   OVERRIDE="${POOL_DIR}/99-mendflow-uploads.conf"
   cat > "$OVERRIDE" <<'EOF'
 ; Mendflow upload limits
+[www]
 php_admin_value[upload_max_filesize] = 64M
 php_admin_value[post_max_size] = 68M
 EOF
   echo "==> PHP-FPM pool: $OVERRIDE"
 fi
 
+if ! "php-fpm${PHP_VER}" -t 2>/dev/null; then
+  echo "✗ php-fpm config invalid — removing ${OVERRIDE:-override}"
+  rm -f "${OVERRIDE:-}"
+fi
 systemctl reload "php${PHP_VER}-fpm" 2>/dev/null || systemctl reload php-fpm 2>/dev/null || true
 
 echo "==> nginx test + reload"

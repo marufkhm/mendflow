@@ -59,7 +59,11 @@ gcloud compute ssh "$VM" --zone "$ZONE" --project "$PROJECT" --quiet --command "
   sudo -u '$REMOTE_USER' git fetch -q origin '$BRANCH'
   sudo -u '$REMOTE_USER' git reset -q --hard '$SHA'
   echo \"✓ сервер на коммите \$(sudo -u '$REMOTE_USER' git rev-parse --short HEAD)\"
-  sudo systemctl reload php*-fpm 2>/dev/null || true
+  for fpm in /usr/sbin/php-fpm*; do
+    [ -x \"\$fpm\" ] || continue
+    if sudo \"\$fpm\" -t 2>/dev/null; then sudo systemctl reload \"\$(basename \"\$fpm\" | sed 's/php-fpm/php/')-fpm\" 2>/dev/null || true
+    else echo \"! \$fpm: конфиг с ошибкой — PHP-FPM не перезагружен\"; fi
+  done
 "
 
 echo "→ Проверка сайта"
