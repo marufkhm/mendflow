@@ -192,6 +192,7 @@ try {
         $st = $pdo->prepare("SELECT id FROM {$repostsTable} WHERE user_id = ? AND post_id = ? LIMIT 1");
         $st->execute([$userId, $postId]);
         $existing = $st->fetchColumn();
+        $becameRepost = false;
 
         if ($action === 'toggle') {
             if ($existing) {
@@ -200,10 +201,12 @@ try {
             } else {
                 $pdo->prepare("INSERT INTO {$repostsTable} (user_id, post_id, created_at) VALUES (?, ?, NOW())")->execute([$userId, $postId]);
                 $reposted = true;
+                $becameRepost = true;
             }
         } elseif ($action === 'add') {
             if (!$existing) {
                 $pdo->prepare("INSERT INTO {$repostsTable} (user_id, post_id, created_at) VALUES (?, ?, NOW())")->execute([$userId, $postId]);
+                $becameRepost = true;
             }
             $reposted = true;
         } elseif ($action === 'remove') {
@@ -216,6 +219,13 @@ try {
         $st = $pdo->prepare("SELECT COUNT(*) FROM {$repostsTable} WHERE post_id = ?");
         $st->execute([$postId]);
         $count = (int)$st->fetchColumn();
+
+        if ($becameRepost && function_exists('notifyInboxByEmail')) {
+            $authorId = (int)($post['user_id'] ?? 0);
+            if ($authorId && $authorId !== (int)$userId) {
+                notifyInboxByEmail($pdo, $authorId, 'repost', (int)$userId, '', $postId);
+            }
+        }
 
         repostJson([
             'success'       => true,

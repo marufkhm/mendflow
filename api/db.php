@@ -636,7 +636,7 @@ function getUser($userId) {
     foreach ([
         'role','is_admin','is_verified','cover_image','organization',
         'specialty','education','country','city','bio',
-        'interest1','interest2','interest3','is_deleted',
+        'interest1','interest2','interest3','is_deleted','notify_inbox_email',
     ] as $col) {
         if (in_array($col, $cols)) $select[] = $col;
     }
@@ -647,6 +647,9 @@ function getUser($userId) {
     if (isUserDeleted($user)) return null;
     $user['is_admin'] = !empty($user['is_admin']);
     if (isset($user['is_verified'])) $user['is_verified'] = (bool)$user['is_verified'];
+    if (isset($user['notify_inbox_email'])) {
+        $user['notify_inbox_email'] = (int)$user['notify_inbox_email'] !== 0;
+    }
     return enrichUserProfile($user);
 }
 
@@ -802,6 +805,9 @@ function insertAppNotification(
             $preview,
             $postType !== '' ? $postType : null,
         ]);
+        if (function_exists('notifyInboxByEmail')) {
+            notifyInboxByEmail($pdo, $userId, $type, $fromUserId, $preview, $refId);
+        }
     } catch (Throwable $e) {
     }
 }
@@ -1079,6 +1085,8 @@ function reorderProjectKanbanColumns(PDO $pdo, int $projectId, array $orderedKey
     }
     return fetchProjectKanbanColumns($pdo, $projectId);
 }
+
+require_once __DIR__ . '/notify_email.php';
 
 function plural($n, $one, $two, $five) {
     $n = abs($n) % 100;

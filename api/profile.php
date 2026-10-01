@@ -255,6 +255,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         }
     }
 
+    if ($action === 'notify_settings') {
+        if (!function_exists('ensureInboxEmailSchema')) {
+            jsonOut(['error' => 'Mail helper unavailable'], 500);
+        }
+        ensureInboxEmailSchema($pdo);
+        $enabled = !empty($input['notify_inbox_email']);
+        try {
+            $pdo->prepare('UPDATE users SET notify_inbox_email = ? WHERE id = ?')
+                ->execute([$enabled ? 1 : 0, $myId]);
+        } catch (Exception $e) {
+            jsonOut(['error' => 'DB error: ' . $e->getMessage()], 500);
+        }
+        jsonOut([
+            'success' => true,
+            'notify_inbox_email' => $enabled,
+        ]);
+    }
+
     if ($action !== '') {
         jsonOut(['error' => 'Unknown action'], 400);
     }
@@ -393,6 +411,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
                                 (user_id, from_user_id, type, post_id, post_preview, post_type, created_at)
                             VALUES (?, ?, 'university_join', NULL, ?, 'user', NOW())
                         ")->execute([$ownerId, $myId, $preview]);
+                        if (function_exists('notifyInboxByEmail')) {
+                            notifyInboxByEmail($pdo, $ownerId, 'university_join', $myId, $preview, $universityId);
+                        }
                     }
                 }
             } catch (Throwable $e) {
@@ -695,8 +716,7 @@ try {
 
     $badges = mfComputeUserBadges($pdo, $targetId);
 
-    jsonOut([
-        'user' => [
+    $userPayload = [
             'id'           => (int)$user['id'],
             'first_name'   => $user['first_name'],
             'last_name'    => $user['last_name'],
@@ -714,7 +734,13 @@ try {
             'interest1'    => $user['interest1']    ?? null,
             'interest2'    => $user['interest2']    ?? null,
             'interest3'    => $user['interest3']    ?? null,
-        ],
+    ];
+    if ($myId === $targetId && function_exists('mfUserWantsInboxEmail')) {
+        $userPayload['notify_inbox_email'] = mfUserWantsInboxEmail($pdo, $myId);
+    }
+
+    jsonOut([
+        'user' => $userPayload,
         'stats' => [
             'posts'   => $postsCount,
             'friends' => $friendsCount,

@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_verified         TINYINT(1)   NOT NULL DEFAULT 0,
     is_admin            TINYINT(1)   NOT NULL DEFAULT 0,
     email_verified_at   DATETIME     DEFAULT NULL,
+    notify_inbox_email  TINYINT(1)   NOT NULL DEFAULT 1,
     last_seen           DATETIME     DEFAULT NULL,
     is_banned           TINYINT(1)   NOT NULL DEFAULT 0,
     banned_at           DATETIME     DEFAULT NULL,
@@ -773,6 +774,17 @@ CREATE TABLE IF NOT EXISTS notifications (
     KEY idx_notif_user (user_id),
     KEY idx_notif_type (type),
     KEY idx_notif_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS inbox_email_log (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    from_user_id INT DEFAULT NULL,
+    ref_id INT NOT NULL DEFAULT 0,
+    sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_iel_user_sent (user_id, sent_at),
+    KEY idx_iel_dedup (user_id, type, ref_id, sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;

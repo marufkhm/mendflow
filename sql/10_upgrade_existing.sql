@@ -29,6 +29,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS employer_company_id INT DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified TINYINT(1) NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin TINYINT(1) NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at DATETIME DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_inbox_email TINYINT(1) NOT NULL DEFAULT 1;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen DATETIME DEFAULT NULL;
 
 -- ── Недостающие таблицы (если API ещё не создавал) ──────────────────────────
@@ -551,6 +552,17 @@ CREATE TABLE IF NOT EXISTS notifications (
     post_type VARCHAR(32) DEFAULT NULL,
     is_read TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS inbox_email_log (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    from_user_id INT DEFAULT NULL,
+    ref_id INT NOT NULL DEFAULT 0,
+    sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_iel_user_sent (user_id, sent_at),
+    KEY idx_iel_dedup (user_id, type, ref_id, sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Колонки на уже существующих таблицах ────────────────────────────────────

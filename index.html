@@ -42,7 +42,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=20260930-m1">
+  <link rel="stylesheet" href="/style.css?v=20261001-inbox-mail">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <script src="/js/mendflow-emojis.js?v=20260705-sparkles-ideas"></script>
   <script src="/js/onboarding.js?v=20260703"></script>
@@ -7467,6 +7467,7 @@
           <h3>Настройки</h3>
           <div class="profile-settings-nav">
             <button class="profile-settings-nav-item is-active" type="button" data-settings-panel="profile">Редактировать профиль</button>
+            <button class="profile-settings-nav-item" type="button" data-settings-panel="notifications">Уведомления</button>
             <button class="profile-settings-nav-item" type="button" data-settings-panel="security">Безопасность</button>
           </div>
         </aside>
@@ -7783,6 +7784,20 @@
                 <button class="primary-button" type="submit">Сохранить профиль</button>
               </div>
             </form>
+          </section>
+
+          <section class="profile-settings-panel" data-settings-panel-content="notifications">
+            <div class="profile-settings-section-head">
+              <h3>Уведомления на почту</h3>
+              <p>Если вас нет на сайте, Mendflow отправит письмо, когда в Inbox появится новое уведомление.</p>
+            </div>
+            <label class="mf-notify-toggle" for="notifyInboxEmailToggle">
+              <input id="notifyInboxEmailToggle" type="checkbox" checked>
+              <span>
+                <strong>Письма о Inbox</strong>
+                <em>Лайки, комментарии, заявки в друзья, отклики и задачи. Не больше 10 писем в день. Пока вы онлайн, письмо не уходит.</em>
+              </span>
+            </label>
           </section>
 
           <section class="profile-settings-panel" data-settings-panel-content="security">
@@ -8292,6 +8307,9 @@
         }, currentUser.id);
       }
       currentUser.cover_image = u.cover_image || null;
+      if (typeof u.notify_inbox_email === 'boolean') {
+        currentUser.notify_inbox_email = u.notify_inbox_email;
+      }
       localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
 
       const profile = syncUserProfile({ ...currentUser, ...u });
@@ -9250,12 +9268,20 @@
       });
     });
   }
+  function hydrateInboxEmailToggle() {
+    const el = $('notifyInboxEmailToggle');
+    if (!el) return;
+    const v = currentUser?.notify_inbox_email;
+    el.checked = v !== false && v !== 0;
+  }
+
   function updateBadge() {
     const name = getUserFullName(currentUser);
     const init = getUserInitials(currentUser);
     if ($('topbarUserName') && name) $('topbarUserName').textContent = name;
     if ($('profileSettingsName') && name) $('profileSettingsName').textContent = name;
     if ($('profileSettingsEmail') && currentUser?.email) $('profileSettingsEmail').textContent = currentUser.email;
+    hydrateInboxEmailToggle();
     const avatarUrl = getAvatarUrl();
     ['topbarAvatar', 'composerAvatar', 'profileSettingsAvatar', 'profileAvatar', 'clientProfileAvatar', 'profileCvAvatar'].forEach(id => {
       setAvatarElement($(id), avatarUrl, init);
@@ -15552,6 +15578,7 @@
     if ($('profileName')) $('profileName').textContent = name;
     if ($('profileEmail')) $('profileEmail').textContent = email || '—';
     if ($('profileSecurityEmailReadonly')) $('profileSecurityEmailReadonly').value = email;
+    hydrateInboxEmailToggle();
     if ($('deleteAccountConfirmLabel')) $('deleteAccountConfirmLabel').textContent = name || '—';
     populateProfileDetailsForm();
     loadBlockedUsersList();
@@ -15704,6 +15731,24 @@
     });
     $('closeProfileSettingsButton')?.addEventListener('click', ()=>$('profileSettingsModal')?.classList.add('is-hidden'));
     $('closeProfileSettingsBackdrop')?.addEventListener('click',()=>$('profileSettingsModal')?.classList.add('is-hidden'));
+    hydrateInboxEmailToggle();
+    $('notifyInboxEmailToggle')?.addEventListener('change', async e => {
+      const enabled = !!e.target.checked;
+      try {
+        await api('/profile.php', {
+          method: 'PUT',
+          body: JSON.stringify({ action: 'notify_settings', notify_inbox_email: enabled }),
+        });
+        if (currentUser) {
+          currentUser.notify_inbox_email = enabled;
+          localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+        }
+        mfToast?.(enabled ? 'Письма о Inbox включены' : 'Письма о Inbox выключены', 'success');
+      } catch (err) {
+        e.target.checked = !enabled;
+        mfToast?.(err.message || 'Не удалось сохранить настройку', 'error');
+      }
+    });
     // Autocomplete handles icon updates now
     $('profileSettingsForm')?.addEventListener('submit', async e=>{
       e.preventDefault();

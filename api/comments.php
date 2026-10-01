@@ -120,6 +120,9 @@ try {
             if ($authorId) {
                 frBumpAffinity($pdo, (int)$userId, $authorId, 'comment');
             }
+            if ($authorId && $authorId !== (int)$userId && function_exists('notifyInboxByEmail')) {
+                notifyInboxByEmail($pdo, $authorId, 'comment', (int)$userId, $content, $postId);
+            }
         } catch (Throwable $e) {
         }
 

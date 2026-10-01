@@ -2408,6 +2408,41 @@ select.filter-input:focus {
   color: var(--ink);
 }
 
+.mf-notify-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface, #fff);
+  cursor: pointer;
+}
+
+.mf-notify-toggle input {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  margin-top: 2px;
+  accent-color: #7c3aed;
+}
+
+.mf-notify-toggle span {
+  display: grid;
+  gap: 6px;
+}
+
+.mf-notify-toggle strong {
+  font-size: 15px;
+}
+
+.mf-notify-toggle em {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--ink-soft, #625b70);
+  line-height: 1.45;
+}
+
 .profile-settings-content {
   min-width: 0;
   min-height: 0;

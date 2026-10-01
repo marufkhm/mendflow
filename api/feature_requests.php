@@ -468,6 +468,9 @@ function frNotifyStatusChange(PDO $pdo, int $ideaId, string $oldStatus, string $
             ");
             foreach (array_keys($recipients) as $uid) {
                 $ins->execute([$uid, $actorId, $ideaId, $ideaId, $preview, $postType]);
+                if (function_exists('notifyInboxByEmail')) {
+                    notifyInboxByEmail($pdo, (int)$uid, 'feature_status', $actorId, $preview, $ideaId);
+                }
             }
         } else {
             $ins = $pdo->prepare("
@@ -476,6 +479,9 @@ function frNotifyStatusChange(PDO $pdo, int $ideaId, string $oldStatus, string $
             ");
             foreach (array_keys($recipients) as $uid) {
                 $ins->execute([$uid, $actorId, $ideaId, $preview, $postType]);
+                if (function_exists('notifyInboxByEmail')) {
+                    notifyInboxByEmail($pdo, (int)$uid, 'feature_status', $actorId, $preview, $ideaId);
+                }
             }
         }
     } catch (Throwable $e) {

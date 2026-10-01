@@ -195,6 +195,9 @@ try {
                 $pdo->prepare(
                     'UPDATE friend_requests SET status = "pending", created_at = NOW() WHERE id = ?'
                 )->execute([(int)$existing['id']]);
+                if (function_exists('notifyInboxByEmail')) {
+                    notifyInboxByEmail($pdo, $toId, 'friend_request', $currentUserId, '', (int)$existing['id']);
+                }
                 friendsJson(['success' => true, 'message' => 'Request sent']);
             }
 
@@ -202,6 +205,10 @@ try {
                 'INSERT INTO friend_requests (from_id, to_id, status, created_at)
                  VALUES (?, ?, "pending", NOW())'
             )->execute([$currentUserId, $toId]);
+            $requestId = (int)$pdo->lastInsertId();
+            if (function_exists('notifyInboxByEmail')) {
+                notifyInboxByEmail($pdo, $toId, 'friend_request', $currentUserId, '', $requestId);
+            }
 
             friendsJson(['success' => true, 'message' => 'Request sent']);
         }

@@ -150,6 +150,9 @@ try {
                     INSERT INTO notifications (user_id, from_user_id, type, post_id, post_preview, post_type, created_at)
                     VALUES (?, ?, 'like', ?, ?, ?, NOW())
                 ")->execute([$authorId, $userId, $postId, $preview, $postType]);
+                if (function_exists('notifyInboxByEmail')) {
+                    notifyInboxByEmail($pdo, $authorId, 'like', (int)$userId, $preview, $postId);
+                }
             }
         } catch (Throwable $e) {
             // Уведомления не критичны — продолжаем

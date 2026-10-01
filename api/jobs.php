@@ -989,6 +989,9 @@ function jobsNotifyCompany(PDO $pdo, int $companyId, int $fromUserId, int $vacan
             INSERT INTO notifications (user_id, from_user_id, type, post_id, post_preview, post_type, created_at)
             VALUES (?, ?, 'job_application', ?, ?, 'company', NOW())
         ")->execute([$ownerId, $fromUserId, $vacancyId, $preview]);
+        if (function_exists('notifyInboxByEmail')) {
+            notifyInboxByEmail($pdo, $ownerId, 'job_application', $fromUserId, $preview, $vacancyId);
+        }
     } catch (Throwable $e) {
     }
 }
@@ -1008,6 +1011,9 @@ function jobsNotifyApplicant(PDO $pdo, int $userId, int $fromUserId, int $appId,
             INSERT INTO notifications (user_id, from_user_id, type, post_id, post_preview, post_type, created_at)
             VALUES (?, ?, 'job_status', ?, ?, 'career', NOW())
         ")->execute([$userId, $fromUserId, $appId, $preview]);
+        if (function_exists('notifyInboxByEmail')) {
+            notifyInboxByEmail($pdo, $userId, 'job_status', $fromUserId, $preview, $appId);
+        }
     } catch (Throwable $e) {
     }
 }
